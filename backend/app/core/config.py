@@ -50,4 +50,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # Read-only filesystem (e.g. Vercel's serverless functions, which only
+    # this module's importers actually need — the thin dashboard API never
+    # touches local files/Kokoro/SQLite, just DATABASE_URL). Not fatal.
+    pass

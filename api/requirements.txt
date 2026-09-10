@@ -1,0 +1,8 @@
+# Dependencies for the Vercel-deployed api/index.py ONLY — deliberately not
+# the same as backend/requirements.txt. This is the thin dashboard API; it
+# never imports the pipeline/agent stack (Kokoro, ffmpeg, praw, etc.), so
+# none of that needs to be here. See api/index.py's docstring.
+fastapi
+sqlalchemy
+psycopg[binary]
+requests

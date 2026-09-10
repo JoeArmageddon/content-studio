@@ -1,0 +1,40 @@
+name: Insights (Feedback + Competitor-Scan)
+
+# Daily "what's working" refresh — own-channel YouTube Analytics
+# (feedback_agent) + market-wide competitor scan (competitor_scan_agent) —
+# for every active channel. Kept as its own workflow/schedule, separate
+# from pipeline.yml's content runs, matching app/scheduler.py's original
+# _INSIGHTS_JOB_HOUR=3 (well before the content-generation cron times).
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run-insights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run insights refresh
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          YOUTUBE_DATA_API_KEY: ${{ secrets.YOUTUBE_DATA_API_KEY }}
+        run: python scripts/run_scheduled_channels.py --insights

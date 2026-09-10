@@ -1,0 +1,15 @@
+{
+  "services": {
+    "dashboard": {
+      "root": "frontend/"
+    },
+    "api": {
+      "root": "api/",
+      "entrypoint": "index:app"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "dashboard" } }
+  ]
+}

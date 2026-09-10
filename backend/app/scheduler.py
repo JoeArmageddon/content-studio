@@ -17,6 +17,13 @@ requests (worse than the rate-limit pressure already documented in
 reddit_client.py), 10 concurrent SQLite writers, and 10 concurrent Kokoro
 loads. A deterministic per-channel offset (hashed from the channel key)
 spreads them out instead.
+
+Going live (deploy): production uses GitHub Actions' own cron instead of
+this module's APScheduler — scripts/run_scheduled_channels.py is the real
+entrypoint there, and it directly reuses run_channel_job()/
+run_insights_job() below rather than duplicating their logic. This module
+stays as-is for anyone running the app locally as a single always-on
+server; it's just not what production runs.
 """
 import hashlib
 from typing import Optional
@@ -35,7 +42,7 @@ _scheduler: Optional[BackgroundScheduler] = None
 _INSIGHTS_JOB_HOUR = 3  # UTC — well before scheduler_start_hour's content runs
 
 
-def _run_channel_job(channel_key: str) -> None:
+def run_channel_job(channel_key: str) -> None:
     db = SessionLocal()
     try:
         channel = db.query(Channel).filter(Channel.key == channel_key).first()
@@ -57,7 +64,7 @@ def _run_channel_job(channel_key: str) -> None:
         db.close()
 
 
-def _run_insights_job(channel_key: str) -> None:
+def run_insights_job(channel_key: str) -> None:
     """Daily Feedback + Competitor-Scan for one channel — not part of the
     per-video pipeline (see feedback_agent.py / competitor_scan_agent.py
     docstrings). Both write into the shared Insight store that
@@ -101,7 +108,7 @@ def _schedule_channel(scheduler: BackgroundScheduler, channel: Channel) -> None:
         hour = (total_minutes // 60) % 24
         minute = total_minutes % 60
         scheduler.add_job(
-            _run_channel_job,
+            run_channel_job,
             trigger=CronTrigger(hour=hour, minute=minute),
             args=[channel.key],
             id=f"channel_{channel.key}_{i}",
@@ -113,7 +120,7 @@ def _schedule_insights_job(scheduler: BackgroundScheduler, channel: Channel) -> 
     offset_minutes = _channel_offset_minutes(channel.key)
     total_minutes = _INSIGHTS_JOB_HOUR * 60 + offset_minutes
     scheduler.add_job(
-        _run_insights_job,
+        run_insights_job,
         trigger=CronTrigger(hour=(total_minutes // 60) % 24, minute=total_minutes % 60),
         args=[channel.key],
         id=f"insights_{channel.key}",

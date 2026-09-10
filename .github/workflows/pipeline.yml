@@ -1,0 +1,77 @@
+name: Content Pipeline
+
+# Replaces app/scheduler.py's in-process APScheduler for production — this
+# workflow's own cron IS the scheduler; scripts/run_scheduled_channels.py
+# decides which channels are actually due (respecting each one's
+# daily_cap) and reuses the exact same pipeline code as local/manual runs.
+on:
+  schedule:
+    # A few opportunities across the day — the script itself filters to
+    # channels not yet at today's daily_cap, so exact times aren't
+    # precision-critical, just need enough spread. UTC.
+    - cron: "0 8 * * *"
+    - cron: "0 13 * * *"
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      channel_key:
+        description: "Run just this one channel (blank = all channels due today)"
+        required: false
+        type: string
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Cache Kokoro model files
+        id: kokoro-cache
+        uses: actions/cache@v4
+        with:
+          path: backend/data/models/kokoro
+          key: kokoro-v1.0
+
+      - name: Download Kokoro model files (cache miss only)
+        if: steps.kokoro-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p data/models/kokoro
+          curl -L -o data/models/kokoro/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx
+          curl -L -o data/models/kokoro/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin
+
+      - name: Run pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          YOUTUBE_DATA_API_KEY: ${{ secrets.YOUTUBE_DATA_API_KEY }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        run: |
+          if [ -n "${{ github.event.inputs.channel_key }}" ]; then
+            python scripts/run_scheduled_channels.py --channel "${{ github.event.inputs.channel_key }}"
+          else
+            python scripts/run_scheduled_channels.py
+          fi

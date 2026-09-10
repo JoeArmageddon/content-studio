@@ -17,13 +17,21 @@ YouTube client — Milestones 6 & 8.
     channel authorized before this change needs re-authorizing to pick up
     the new scope). NOT verified live — no OAuth-authorized channel with
     analytics history was available while building this.
+
+Token storage: the `youtube_tokens` DB table (app.core.models.YouTubeToken),
+not a local file — added when going live on GitHub Actions, since those runs
+are ephemeral with no persistent disk between runs. This also just works
+for local dev against the default local SQLite DB, so there's one storage
+path, not two.
 """
-import os
+import json
 from typing import Any
 
 import requests
 
-from app.core.config import DATA_DIR, settings
+from app.core.db import SessionLocal
+from app.core.models import YouTubeToken
+from app.core.config import settings
 
 _SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
@@ -33,26 +41,39 @@ class NotAuthorized(RuntimeError):
     """No OAuth token exists yet for this channel."""
 
 
-def _token_path(channel_key: str) -> str:
-    return str(DATA_DIR / "youtube_tokens" / f"{channel_key}.json")
+def save_credentials(channel_key: str, creds) -> None:
+    db = SessionLocal()
+    try:
+        row = db.query(YouTubeToken).filter(YouTubeToken.channel_key == channel_key).first()
+        if row is None:
+            row = YouTubeToken(channel_key=channel_key)
+            db.add(row)
+        row.token_json = creds.to_json()
+        db.commit()
+    finally:
+        db.close()
 
 
 def get_credentials(channel_key: str):
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
 
-    path = _token_path(channel_key)
-    if not os.path.exists(path):
+    db = SessionLocal()
+    try:
+        row = db.query(YouTubeToken).filter(YouTubeToken.channel_key == channel_key).first()
+    finally:
+        db.close()
+
+    if row is None:
         raise NotAuthorized(
             f"No YouTube authorization for channel '{channel_key}'. Run: "
             f"python scripts/authorize_youtube_channel.py {channel_key}"
         )
 
-    creds = Credentials.from_authorized_user_file(path)
+    creds = Credentials.from_authorized_user_info(json.loads(row.token_json))
     if creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        with open(path, "w") as f:
-            f.write(creds.to_json())
+        save_credentials(channel_key, creds)
     return creds
 
 
