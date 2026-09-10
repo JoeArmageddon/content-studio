@@ -1,8 +1,12 @@
 import axios from "axios";
 
-// Points at the FastAPI backend — override with VITE_API_BASE_URL if it's
-// not running on localhost:8000 (see backend/README quick start).
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+// Relative path — works unchanged in both local dev (Vite's dev-server
+// proxy in vite.config.js forwards /api to the backend on :8000) and
+// production on Vercel (vercel.json's rewrite sends /api to the same-origin
+// api/ service) — one code path, no env var needed either way. Override
+// with VITE_API_BASE_URL only if the backend genuinely lives on a
+// different origin than whatever's serving this frontend.
+const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 export const api = axios.create({ baseURL });
 
