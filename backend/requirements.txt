@@ -1,0 +1,41 @@
+# --- Milestone 1: core app + orchestration ---
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]    # Postgres driver — added when going live on Supabase;
+                    # SQLite (no driver needed) still works for local dev
+pydantic
+pydantic-settings
+python-dotenv
+pyyaml
+langgraph
+apscheduler
+
+# --- Milestone 2: sourcing + dedupe ---
+requests           # also used by reddit_client's public-JSON fallback
+praw
+duckduckgo-search
+# dedupe uses stdlib difflib (see vector_store.py) — no embedding deps needed
+
+# --- Milestone 3: LLM agents (Hook / Scriptwriter / Script QA) ---
+groq
+google-generativeai
+
+# --- Milestone 4: voice ---
+# Kokoro (local model, not a metered API — free forever) replaced Edge-TTS
+# after a direct listening test confirmed Edge-TTS still sounded robotic
+# even with prosody engineering; needs Python 3.10+ (see README's Kokoro
+# setup section for the two model files to download, ~330MB one-time).
+kokoro-onnx
+soundfile
+elevenlabs         # manual "hero video" opt-in only — not wired into the pipeline
+
+# --- Milestone 5: background footage + story-card overlay + video assembly ---
+yt-dlp
+pillow             # story-card overlay rendering
+imageio-ffmpeg     # bundles a static ffmpeg binary — no system ffmpeg install needed
+
+# --- Milestone 6/8: YouTube upload + analytics + competitor search ---
+google-api-python-client
+google-auth
+google-auth-oauthlib

@@ -1,0 +1,138 @@
+# Content Studio — Storique channel definitions (Phase 1)
+#
+# Each channel is pure config: same LangGraph pipeline, different niche.
+# daily_cap is the shadowban fix — start conservative, raise only once a
+# channel is warmed up and the Feedback/Competitor agents confirm it's safe.
+#
+# `persona` is the fixed brand identity shown on the story-card overlay
+# during the hook (Milestone 5) — handle + a placeholder emoji avatar
+# (rendered inside a colored circle by story_card_renderer.py, no real
+# artwork needed). Names/emoji below are first-pass placeholders — rename
+# freely before Milestone 5 lands.
+#
+# `voices` is a rotating pool, not one fixed narrator per channel — the
+# Voice Agent picks randomly per run for variety. Same 3 Kokoro voices
+# shared across every channel for now (verified good by ear: am_adam,
+# af_heart, af_bella) — differentiate per niche later once more of
+# Kokoro's ~19 American voices have been listened to.
+
+channels:
+  - key: cheats
+    name: Cheats
+    niche: "Cheating / infidelity confession stories"
+    subreddits: ["survivinginfidelity", "relationship_advice", "cheating_stories"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["oddly satisfying soap cutting asmr", "kinetic sand cutting asmr"]
+    active: true
+    persona:
+      handle: "@CaughtTales"
+      avatar_emoji: "💔"
+
+  - key: tifu
+    name: TIFU
+    niche: "Today I F***ed Up — embarrassing/consequence stories"
+    subreddits: ["tifu"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["minecraft parkour gameplay", "subway surfers gameplay"]
+    active: true
+    persona:
+      handle: "@TIFUReads"
+      avatar_emoji: "🤦"
+
+  - key: horror
+    name: Horror
+    niche: "Horror / creepy real-experience stories"
+    subreddits: ["nosleep", "shortscarystories", "letsnotmeet"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["foggy forest atmospheric night", "abandoned house exploration"]
+    active: true
+    persona:
+      handle: "@MidnightTales"
+      avatar_emoji: "👻"
+
+  - key: family
+    name: Family
+    niche: "Family drama stories"
+    subreddits: ["entitledparents", "JUSTNOFAMILY", "familydrama"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["satisfying cooking asmr", "baking asmr close up"]
+    active: true
+    persona:
+      handle: "@FamilyDramaVault"
+      avatar_emoji: "👪"
+
+  - key: confessions
+    name: Confessions
+    niche: "Anonymous confession stories"
+    subreddits: ["confession", "confessions", "offmychest"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["rain on window relaxing", "night city drive pov"]
+    active: true
+    persona:
+      handle: "@AnonConfessions"
+      avatar_emoji: "🤫"
+
+  - key: aita
+    name: AITA
+    niche: "Am I The Asshole — moral-judgment stories"
+    subreddits: ["AmItheAsshole"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["minecraft parkour gameplay", "satisfying slime asmr"]
+    active: true
+    persona:
+      handle: "@AITAVerdicts"
+      avatar_emoji: "⚖️"
+
+  - key: reallife_survival
+    name: "Real-Life Survival"
+    niche: "Real-life survival / dangerous-situation stories"
+    subreddits: ["survival", "TrueOffMyChest", "CampingandHiking"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["hiking forest trail nature", "mountain landscape drone"]
+    active: true
+    persona:
+      handle: "@SurvivalTales"
+      avatar_emoji: "🏕️"
+
+  - key: workplace
+    name: Workplace
+    niche: "Workplace drama / toxic boss / coworker stories"
+    subreddits: ["antiwork", "MaliciousCompliance", "pettyrevenge"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["city timelapse aesthetic", "cozy office desk aesthetic"]
+    active: true
+    persona:
+      handle: "@WorkplaceTales"
+      avatar_emoji: "💼"
+
+  - key: askreddit
+    name: AskReddit
+    niche: "AskReddit thread-style stories (best top-comment stories per thread)"
+    subreddits: ["AskReddit"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["subway surfers gameplay", "temple run gameplay"]
+    active: true
+    persona:
+      handle: "@AskRedditVault"
+      avatar_emoji: "🧵"
+
+  - key: rich_v_poor
+    name: "Rich vs Poor"
+    niche: "Wealth-gap / class-contrast stories"
+    subreddits: ["povertyfinance", "fatFIRE", "childfree"]
+    voices: ["am_adam", "af_heart", "af_bella"]
+    daily_cap: 3
+    background_queries: ["luxury lifestyle aesthetic", "city skyline drone timelapse"]
+    active: true
+    persona:
+      handle: "@RichVsPoorTales"
+      avatar_emoji: "💰"
