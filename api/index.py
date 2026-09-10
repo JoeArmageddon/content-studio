@@ -30,6 +30,13 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, Str
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./dashboard.db")
+# SQLAlchemy's bare "postgresql://" scheme defaults to psycopg2, but we
+# install psycopg3 (psycopg[binary], requirements.txt) — normalize so
+# DATABASE_URL doesn't need the exact dialect suffix (Supabase's own UI
+# gives the bare scheme). Same fix as backend/app/core/db.py.
+if DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL.split("://", 1)[1]
+
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_REPO = os.environ.get("GITHUB_REPO")  # "owner/repo"
 

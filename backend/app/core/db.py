@@ -12,8 +12,17 @@ from app.core.config import settings
 
 _is_sqlite = settings.database_url.startswith("sqlite")
 
+# SQLAlchemy's bare "postgresql://" scheme defaults to the psycopg2 dialect,
+# but we install psycopg3 (psycopg[binary], requirements.txt) — normalize
+# so DATABASE_URL doesn't have to get the exact dialect suffix right in
+# every place it's set (Supabase's own connection-string UI gives the bare
+# scheme). Caught when first testing the Supabase connection live.
+_database_url = settings.database_url
+if _database_url.startswith("postgresql://") or _database_url.startswith("postgres://"):
+    _database_url = "postgresql+psycopg://" + _database_url.split("://", 1)[1]
+
 engine = create_engine(
-    settings.database_url,
+    _database_url,
     connect_args={"check_same_thread": False} if _is_sqlite else {},
 )
 
