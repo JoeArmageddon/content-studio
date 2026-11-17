@@ -13,6 +13,7 @@ OAuth-authorized yet — same pattern as every other credential-gated agent.
 """
 from datetime import datetime, timezone
 
+from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.models import Video
 from app.graph.state import PipelineState
@@ -42,6 +43,13 @@ def run(state: PipelineState) -> PipelineState:
     if not video_path:
         state["published"] = False
         state.setdefault("stage_log", []).append("publish_skipped_no_video")
+        return state
+
+    if settings.dry_run:
+        state["published"] = False
+        state["dry_run"] = True
+        state.setdefault("compliance_notes", []).append(f"DRY RUN: video built at {video_path}, not uploaded.")
+        state.setdefault("stage_log", []).append("publish_skipped_dry_run")
         return state
 
     channel = state.get("channel", {})

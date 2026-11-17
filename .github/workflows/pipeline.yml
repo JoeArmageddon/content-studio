@@ -18,6 +18,11 @@ on:
         description: "Run just this one channel (blank = all channels due today)"
         required: false
         type: string
+      dry_run:
+        description: "Build the video but DON'T upload it (saved as a downloadable artifact)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   run-pipeline:
@@ -49,15 +54,15 @@ jobs:
         id: kokoro-cache
         uses: actions/cache@v4
         with:
-          path: backend/data/models/kokoro
+          path: data/models/kokoro
           key: kokoro-v1.0
 
       - name: Download Kokoro model files (cache miss only)
         if: steps.kokoro-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p data/models/kokoro
-          curl -L -o data/models/kokoro/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx
-          curl -L -o data/models/kokoro/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin
+          mkdir -p ../data/models/kokoro
+          curl -L -o ../data/models/kokoro/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx
+          curl -L -o ../data/models/kokoro/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin
 
       - name: Run pipeline
         env:
@@ -69,9 +74,21 @@ jobs:
           YOUTUBE_DATA_API_KEY: ${{ secrets.YOUTUBE_DATA_API_KEY }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && 'true' || 'false' }}
         run: |
           if [ -n "${{ github.event.inputs.channel_key }}" ]; then
             python scripts/run_scheduled_channels.py --channel "${{ github.event.inputs.channel_key }}"
           else
             python scripts/run_scheduled_channels.py
           fi
+
+      - name: Upload built videos (dry runs / debugging)
+        if: always() && github.event.inputs.dry_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-videos
+          path: |
+            data/exports/video/*.mp4
+            data/story_cards/*.png
+          if-no-files-found: warn
+          retention-days: 7

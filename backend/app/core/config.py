@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{DATA_DIR / 'content_studio.db'}"
     scheduler_enabled: bool = False
     scheduler_start_hour: int = 8  # UTC hour the first daily run window opens per channel
+    # DRY_RUN=true: build everything (script, voice, video) but never upload — for supervised test runs.
+    dry_run: bool = False
 
     # Reddit (Sourcing Agent — Milestone 2)
     reddit_client_id: Optional[str] = None

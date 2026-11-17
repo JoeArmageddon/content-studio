@@ -26,7 +26,7 @@ def channel_to_dict(channel: Channel) -> dict:
 
 def finalize_run(db: Session, run: Run, channel: Channel, final_state: dict) -> None:
     run.stage_log = final_state.get("stage_log", [])
-    run.status = "done" if final_state.get("published") else "failed"
+    run.status = "done" if final_state.get("published") else ("dry_run" if final_state.get("dry_run") else "failed")
     run.finished_at = datetime.now(timezone.utc)
 
     story_data = final_state.get("story")
