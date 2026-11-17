@@ -137,6 +137,45 @@ def _fetch_public_json(subreddit: str, limit: int) -> list[dict[str, Any]]:
     return [s for s in stories if s]
 
 
+_ARCTIC_URL = "https://arctic-shift.photon-reddit.com/api/posts/search"
+_ARCTIC_WINDOW_DAYS = 7  # posts older than ~a day carry settled scores; a week keeps small subs viable
+_ARCTIC_MIN_AGE_HOURS = 20  # skip the last ~day: scores there are still ingest-time values (~1)
+
+
+def _fetch_arctic_shift(subreddit: str, limit: int) -> list[dict[str, Any]]:
+    """Reddit archive mirror (arctic-shift) — free, no key, and NOT blocked
+    from datacenter IPs (Reddit's own endpoints 403/404 GitHub Actions
+    runners; discovered on the first real Actions run). Gives REAL scores,
+    unlike RSS's position proxy, so curation ranks by actual engagement.
+    Trade-off: it's a third-party archive, so posts are 20h+ old by the time
+    their score is trustworthy — fine for evergreen story content."""
+    now = time.time()
+    fmt = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t))  # noqa: E731
+    resp = requests.get(
+        _ARCTIC_URL,
+        params={
+            "subreddit": subreddit,
+            "after": fmt(now - _ARCTIC_WINDOW_DAYS * 86400),
+            "before": fmt(now - _ARCTIC_MIN_AGE_HOURS * 3600),
+            "limit": 100,
+            "sort": "desc",
+        },
+        headers=_HEADERS,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    stories = []
+    for raw in resp.json().get("data", []):
+        body = (raw.get("selftext") or "").strip()
+        if body in ("", "[removed]", "[deleted]") or _META_TITLE_RE.search(raw.get("title", "")):
+            continue
+        s = _from_raw(raw, subreddit)
+        if s:
+            stories.append(s)
+    stories.sort(key=lambda x: x["score"], reverse=True)
+    return stories[:limit]
+
+
 def _fetch_praw(subreddit: str, limit: int) -> list[dict[str, Any]]:
     import praw  # imported lazily — only needed when credentials are configured
 
@@ -166,20 +205,26 @@ def _fetch_praw(subreddit: str, limit: int) -> list[dict[str, Any]]:
 
 def fetch_stories(subreddits: list[str], limit: int = 10) -> list[dict[str, Any]]:
     use_praw = bool(settings.reddit_client_id and settings.reddit_client_secret)
+    # Order: PRAW (if approved creds) > arctic-shift (real scores, works from
+    # CI) > RSS (position-proxy scores, blocked from datacenter IPs) > public JSON.
+    fetchers = [_fetch_praw] if use_praw else [_fetch_arctic_shift, _fetch_rss, _fetch_public_json]
 
     all_stories: list[dict[str, Any]] = []
-    for i, subreddit in enumerate(subreddits):
-        if i > 0 and not use_praw:
-            # RSS's rate limit behaves like a global-ish budget (see module
-            # docstring) — pace requests within this call rather than
-            # bursting them, so later subreddits don't just 429 immediately.
-            time.sleep(_RSS_INTER_SUBREDDIT_DELAY_SECONDS)
-
-        fetchers = [_fetch_praw] if use_praw else [_fetch_rss, _fetch_public_json]
+    rss_calls_made = False
+    for subreddit in subreddits:
         fetched = False
         for fetcher in fetchers:
+            if fetcher is _fetch_rss:
+                if rss_calls_made:
+                    # RSS's rate limit behaves like a global-ish budget (see
+                    # module docstring) — pace RSS requests only.
+                    time.sleep(_RSS_INTER_SUBREDDIT_DELAY_SECONDS)
+                rss_calls_made = True
             try:
-                all_stories.extend(fetcher(subreddit, limit))
+                result = fetcher(subreddit, limit)
+                if not result:
+                    raise RuntimeError("returned no usable posts")
+                all_stories.extend(result)
                 fetched = True
                 break
             except Exception as exc:  # noqa: BLE001 — try the next fetcher
