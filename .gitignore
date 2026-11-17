@@ -9,7 +9,8 @@ venv/
 backend/.env
 **/youtube_token.json
 **/youtube_credentials.json
-**/client_secret*.json   # Google OAuth client secrets, wherever you keep it
+# Google OAuth client secrets, wherever you keep it
+**/client_secret*.json
 
 # Data (DB, exports, cached footage) — never commit generated media/DB
 data/
