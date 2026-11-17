@@ -11,8 +11,13 @@ from typing import Optional
 
 from app.core.config import settings
 
-_GROQ_MODEL = "llama-3.3-70b-versatile"
-_GEMINI_MODEL = "gemini-1.5-flash"
+_GEMINI_MODEL = "gemini-1.5-flash"  # NOT re-verified — likely retired like Groq's Llama was; confirm before relying on this fallback
+
+# Reasoning models (openai/gpt-oss-*) spend part of max_tokens on hidden
+# reasoning, so a tight limit (e.g. the Hook Agent's 60) can come back as an
+# EMPTY string with finish_reason="length" — caught when the Llama model we
+# originally hardcoded was retired by Groq and its replacement was tested.
+_REASONING_HEADROOM_TOKENS = 300
 
 
 class LLMNotConfigured(RuntimeError):
@@ -28,13 +33,25 @@ def _generate_groq(prompt: str, system: Optional[str], max_tokens: int, temperat
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
 
+    extra = {}
+    if "gpt-oss" in settings.groq_model:
+        extra["reasoning_effort"] = "low"
+        max_tokens += _REASONING_HEADROOM_TOKENS
+
     resp = client.chat.completions.create(
-        model=_GROQ_MODEL,
+        model=settings.groq_model,
         messages=messages,
         max_tokens=max_tokens,
         temperature=temperature,
+        **extra,
     )
-    return resp.choices[0].message.content.strip()
+    text = (resp.choices[0].message.content or "").strip()
+    if not text:
+        raise RuntimeError(
+            f"Groq model {settings.groq_model} returned empty content "
+            f"(finish_reason={resp.choices[0].finish_reason})"
+        )
+    return text
 
 
 def _generate_gemini(prompt: str, system: Optional[str], max_tokens: int, temperature: float) -> str:

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
 
     # LLMs (Hook/Scriptwriter/Script QA agents — Milestone 3)
     groq_api_key: Optional[str] = None
+    # Groq retires models without much warning (llama-3.3-70b-versatile was
+    # gone by Nov 2026) — configurable via GROQ_MODEL so a retirement is an
+    # env-var change, not a code change.
+    groq_model: str = "openai/gpt-oss-120b"
     gemini_api_key: Optional[str] = None
 
     # Voice (Voice Agent — Milestone 4). Kokoro (local, free, no key) is the
