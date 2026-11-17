@@ -60,5 +60,10 @@ def run(state: PipelineState) -> PipelineState:
         state["metadata"] = {"title": title_fallback, "description": "", "tags": []}
         state["error"] = f"Metadata generation failed: {exc}"
 
+    credit = state.get("background_credit")
+    if credit:
+        meta = state["metadata"]
+        meta["description"] = f"{meta.get('description', '').rstrip()}\n\n{credit}"[:4900]
+
     state.setdefault("stage_log", []).append("metadata")
     return state

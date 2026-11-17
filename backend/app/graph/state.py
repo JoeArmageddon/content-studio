@@ -21,6 +21,7 @@ class PipelineState(TypedDict, total=False):
     voice_path: Optional[str]
     voice_used: Optional[str]  # which voice from channel's pool got picked this run
     background_clip: Optional[str]
+    background_credit: Optional[str]  # CC BY attribution line, appended to the video description
     story_card_path: Optional[str]  # hook-duration overlay PNG (persona card)
     video_path: Optional[str]
 

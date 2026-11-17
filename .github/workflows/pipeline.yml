@@ -64,6 +64,17 @@ jobs:
           curl -L -o ../data/models/kokoro/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.onnx
           curl -L -o ../data/models/kokoro/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin
 
+      - name: Download background footage library
+        # Built on a normal home IP (YouTube blocks CI IPs) and published as a
+        # release by scripts/publish_background_library.py.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p ../data/backgrounds /tmp/bg
+          gh release download backgrounds --repo "$GITHUB_REPOSITORY" --pattern 'backgrounds-*.tar.gz' --dir /tmp/bg || echo "No background library release yet"
+          for f in /tmp/bg/backgrounds-*.tar.gz; do [ -f "$f" ] && tar -xzf "$f" -C ../data/backgrounds; done
+          ls ../data/backgrounds || true
+
       - name: Run pipeline
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

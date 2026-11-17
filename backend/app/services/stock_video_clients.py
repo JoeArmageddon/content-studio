@@ -52,6 +52,22 @@ def load_manifest(channel_key: str) -> list[dict[str, Any]]:
         return json.load(f)
 
 
+def resolve_clip_path(channel_key: str, file: str) -> str:
+    """Manifest entries written by the library builder store a path relative
+    to data/backgrounds/<channel_key>/ (so the same manifest works on your
+    Mac and on a GitHub Actions runner); older entries are absolute."""
+    if os.path.isabs(file):
+        return file
+    return str(DATA_DIR / "backgrounds" / channel_key / file)
+
+
+def attribution_for(entry: dict[str, Any]) -> Optional[str]:
+    """CC BY requires crediting the uploader — returned as a description line."""
+    if entry.get("source") != "youtube_cc" or not entry.get("title"):
+        return None
+    return f'Background footage: "{entry["title"]}" by {entry.get("channel_title", "unknown")} (CC BY) {entry.get("url", "")}'.strip()
+
+
 def _append_manifest(channel_key: str, entry: dict[str, Any]) -> None:
     path = _manifest_path(channel_key)
     os.makedirs(os.path.dirname(path), exist_ok=True)

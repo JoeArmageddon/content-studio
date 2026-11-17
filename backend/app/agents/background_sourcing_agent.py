@@ -17,7 +17,7 @@ from app.services import stock_video_clients
 # Once a channel has this many cached clips, reuse the pool instead of
 # fetching a new one every run — keeps API usage low and still gives
 # plenty of visual variety across videos.
-_CACHE_TARGET_SIZE = 8
+_CACHE_TARGET_SIZE = 6  # = what the library builder makes per channel (2 queries x 3 clips)
 
 
 def run(state: PipelineState) -> PipelineState:
@@ -28,8 +28,9 @@ def run(state: PipelineState) -> PipelineState:
     manifest = stock_video_clients.load_manifest(key)
 
     clip_path = None
+    entry = None
     if len(manifest) >= _CACHE_TARGET_SIZE:
-        clip_path = random.choice(manifest)["file"]
+        entry = random.choice(manifest)
     else:
         query = random.choice(queries)
         try:
@@ -38,10 +39,14 @@ def run(state: PipelineState) -> PipelineState:
             state["error"] = f"Background sourcing failed: {exc}"
 
         if not clip_path and manifest:
-            # Fetch failed (e.g. no API keys configured) but we have older
-            # cached clips from a previous successful run — reuse one
-            # rather than leaving the video without background footage.
-            clip_path = random.choice(manifest)["file"]
+            # Fetch failed (e.g. no API keys configured, or YouTube blocking CI
+            # IPs) but we have library clips — reuse one rather than leaving
+            # the video without background footage.
+            entry = random.choice(manifest)
+
+    if entry:
+        clip_path = stock_video_clients.resolve_clip_path(key, entry["file"])
+        state["background_credit"] = stock_video_clients.attribution_for(entry)
 
     state["background_clip"] = clip_path
     state.setdefault("stage_log", []).append("background")
