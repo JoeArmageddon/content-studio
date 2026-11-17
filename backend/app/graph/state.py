@@ -30,6 +30,7 @@ class PipelineState(TypedDict, total=False):
     compliance_notes: list[str]
 
     published: Optional[bool]
+    dry_run: Optional[bool]  # DRY_RUN=true runs build the video but skip the upload
     youtube_video_id: Optional[str]
 
     stage_log: list[str]
