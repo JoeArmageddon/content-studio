@@ -62,7 +62,9 @@ def main() -> None:
 
     init_db()  # make sure youtube_tokens exists if pointed at a fresh DB
     save_credentials(channel_key, creds)
-    print(f"Saved. Channel '{channel_key}' is now authorized to upload (DATABASE_URL={settings.database_url}).")
+    from sqlalchemy.engine import make_url  # don't echo the DB password into terminal scrollback
+
+    print(f"Saved. Channel '{channel_key}' is now authorized to upload (DB: {make_url(settings.database_url).render_as_string(hide_password=True)}).")
 
 
 if __name__ == "__main__":
