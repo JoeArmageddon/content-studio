@@ -68,7 +68,7 @@ def main() -> None:
 
     for key in keys:
         print(f"=== Running channel '{key}' ===")
-        run_channel_job(key)
+        run_channel_job(key, force=bool(args.channel))  # an explicit --channel is a manual run: ignore the pause
 
 
 if __name__ == "__main__":

@@ -42,11 +42,17 @@ _scheduler: Optional[BackgroundScheduler] = None
 _INSIGHTS_JOB_HOUR = 3  # UTC — well before scheduler_start_hour's content runs
 
 
-def run_channel_job(channel_key: str) -> None:
+def run_channel_job(channel_key: str, force: bool = False) -> None:
+    """force=True is for a manual run (dashboard / workflow_dispatch): it runs even
+    if the channel is paused. Scheduled runs leave it False so a pause is honoured."""
     db = SessionLocal()
     try:
         channel = db.query(Channel).filter(Channel.key == channel_key).first()
-        if not channel or not channel.active:
+        if not channel:
+            print(f"WARNING: channel '{channel_key}' not found — nothing to run")
+            return
+        if not channel.active and not force:
+            print(f"Skipping '{channel_key}': channel is paused")
             return
 
         run = Run(channel_id=channel.id, status="running", stage_log=[])
