@@ -1,0 +1,145 @@
+import { Link } from "react-router-dom";
+import { getOverview } from "../lib/api";
+import { useLoad } from "../lib/hooks";
+import { ago, dur, istDateTime, istTime, num, until } from "../lib/format";
+import { Avatar, Badge, Bar, ChannelLink, ErrorBox, Loading, PageHead, Section, Stat, StatusBadge } from "../components/ui";
+import { ActivityChart } from "../components/charts";
+
+const ALERT_TONE = { error: "bad", warn: "warn", info: "info" };
+
+export default function OverviewPage() {
+  const { data: o, error, loading, updated, reload } = useLoad(getOverview, [], 30000);
+  if (error && !o) return <ErrorBox error={error} onRetry={reload} />;
+  if (!o) return <Loading what="overview" />;
+
+  const t = o.totals, h = o.health;
+  const rate = h.success_rate_7d;
+
+  return (
+    <div className="space-y-7">
+      <PageHead title="Overview" sub={`Updated ${istTime(updated)} IST · refreshes every 30s`}>
+        <button className="btn" onClick={reload} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
+      </PageHead>
+
+      {o.alerts.length ? (
+        <Section title={`Needs attention (${o.alerts.length})`}>
+          <div className="card divide-y hairline">
+            {o.alerts.map((a, i) => (
+              <div key={i} className="flex items-start gap-3 p-3.5 text-sm">
+                <Badge tone={ALERT_TONE[a.level]}>{a.level === "error" ? "Problem" : a.level === "warn" ? "Warning" : "Info"}</Badge>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{a.title}</div>
+                  <div className="muted mt-0.5 break-words text-xs">{a.detail}</div>
+                </div>
+                {a.channel_key ? <Link to={`/channels/${a.channel_key}`} className="btn shrink-0">Open</Link> : null}
+              </div>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <Stat label="Published today" value={`${o.today.published}/${o.today.capacity}`} sub="of today's capacity" />
+        <Stat label="Total published" value={num(t.published)} sub="videos on YouTube" />
+        <Stat label="Total views" value={num(t.views)} sub={`${num(t.likes)} likes`} />
+        <Stat label="Subscribers" value={num(t.subscribers)} sub="across all channels" />
+        <Stat
+          label="Run success · 7d"
+          value={rate === null ? "–" : `${rate}%`}
+          sub={`${h.done_7d} ok · ${h.failed_7d} failed`}
+          tone={rate === null ? undefined : rate >= 80 ? "ok" : rate < 50 ? "bad" : undefined}
+        />
+        <Stat label="Channels live" value={`${t.active}/${t.channels}`} sub={`${t.hd_footage} with HD footage`} />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-5">
+        <Section title="Activity · last 14 days" className="lg:col-span-3"
+          action={<span className="muted flex items-center gap-3 text-xs"><i className="inline-block h-2 w-2 rounded-sm" style={{ background: "var(--ok)" }} /> published <i className="inline-block h-2 w-2 rounded-sm" style={{ background: "var(--bad)" }} /> failed runs</span>}>
+          <div className="card p-4"><ActivityChart data={o.activity} /></div>
+        </Section>
+
+        <Section title="Schedule" className="lg:col-span-2">
+          <div className="card space-y-3 p-4 text-sm">
+            <div>
+              <div className="label mb-1.5">Next pipeline runs (IST)</div>
+              <div className="flex flex-wrap gap-2">
+                {h.next_runs.slice(0, 3).map((r, i) => (
+                  <div key={r} className={`rounded-lg border px-2.5 py-1.5 hairline ${i === 0 ? "ring-1" : ""}`} style={i === 0 ? { "--tw-ring-color": "var(--accent)" } : undefined}>
+                    <div className="font-semibold">{istTime(r)}</div>
+                    <div className="muted text-[11px]">{until(r)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="hairline border-t pt-3">
+              <div className="label mb-1">Last run</div>
+              {h.last_run ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate">{h.last_run.channel_name} · {ago(h.last_run.started_at)}</span>
+                  <StatusBadge status={h.last_run.status} />
+                </div>
+              ) : <span className="muted">No runs yet</span>}
+            </div>
+            <div className="hairline border-t pt-3">
+              <div className="label mb-1">YouTube stats</div>
+              <span className="muted">{h.stats_updated_at ? `Synced ${ago(h.stats_updated_at)}` : "Not synced yet"}</span>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Today by channel" action={<Link to="/channels" className="muted text-xs hover:underline">All channels →</Link>}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {o.today.channels.map((c) => (
+            <Link key={c.key} to={`/channels/${c.key}`} className={`card block p-3 transition hover:shadow-md ${c.active ? "" : "opacity-60"}`}>
+              <div className="mb-2.5 flex items-center gap-2.5">
+                <Avatar k={c.key} size={30} name={c.name} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{c.name}</div>
+                  <div className="muted text-[11px]">{c.active ? `${c.published}/${c.cap} today` : "paused"}</div>
+                </div>
+              </div>
+              <Bar value={c.published} max={c.cap} tone={c.published >= c.cap ? "ok" : "accent"} />
+            </Link>
+          ))}
+        </div>
+      </Section>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Section title="Recent runs" action={<Link to="/runs" className="muted text-xs hover:underline">All runs →</Link>}>
+          <div className="card divide-y hairline">
+            {o.recent_runs.length === 0 ? <div className="muted p-6 text-center text-sm">No runs yet</div> : null}
+            {o.recent_runs.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 p-3 text-sm">
+                <Avatar k={r.channel_key} size={26} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{r.video_title || r.channel_name}</div>
+                  <div className="muted flex items-center gap-2 text-xs">
+                    <span>{istDateTime(r.started_at)}</span><span>·</span><span>{dur(r.duration_seconds)}</span>
+                  </div>
+                </div>
+                <StatusBadge status={r.status} />
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Top videos" action={<Link to="/videos" className="muted text-xs hover:underline">All videos →</Link>}>
+          <div className="card divide-y hairline">
+            {o.top_videos.length === 0 ? <div className="muted p-6 text-center text-sm">No published videos yet</div> : null}
+            {o.top_videos.map((v) => (
+              <div key={v.id} className="flex items-center gap-3 p-3 text-sm">
+                {v.thumbnail ? <img src={v.thumbnail} alt="" className="h-12 w-8 shrink-0 rounded object-cover" style={{ background: "var(--line)" }} /> : null}
+                <div className="min-w-0 flex-1">
+                  <a href={v.youtube_url || undefined} target="_blank" rel="noreferrer" className="line-clamp-1 font-medium hover:underline">{v.title}</a>
+                  <div className="muted mt-0.5 text-xs"><ChannelLink k={v.channel_key} name={v.channel_name} size={16} /></div>
+                </div>
+                <div className="text-right text-xs"><div className="font-semibold">{num(v.views)}</div><div className="muted">views</div></div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+    </div>
+  );
+}

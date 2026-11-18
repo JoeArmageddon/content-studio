@@ -1,8 +1,58 @@
 @import "tailwindcss";
 
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --line: #e4e7ec;
+  --text: #101828;
+  --muted: #667085;
+  --accent: #6d5efc;
+  --ok: #12b76a;
+  --warn: #f79009;
+  --bad: #f04438;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0e14;
+    --surface: #151821;
+    --line: #262b38;
+    --text: #eef0f6;
+    --muted: #9aa3b5;
+    --accent: #8b80ff;
+  }
+}
+
+html { color-scheme: light dark; }
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  .muted { color: var(--muted); }
+  .hairline { border-color: var(--line); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+    padding: .4rem .8rem; font-size: .8125rem; font-weight: 500; color: var(--text);
+    cursor: pointer; transition: background .12s, border-color .12s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--muted); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--accent); }
+  .btn-danger { color: var(--bad); }
+  .input {
+    border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+    padding: .4rem .65rem; font-size: .8125rem; color: var(--text); min-width: 0;
+  }
+  .input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .th { padding: .6rem .9rem; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); text-align: left; }
+  .td { padding: .7rem .9rem; font-size: .8125rem; vertical-align: middle; }
+  .label { font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 }

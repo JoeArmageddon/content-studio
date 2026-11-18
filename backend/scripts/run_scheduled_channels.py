@@ -24,6 +24,7 @@ from app.agents.publisher_agent import _today_published_count  # noqa: E402
 from app.core.db import SessionLocal, init_db  # noqa: E402
 from app.core.models import Channel  # noqa: E402
 from app.scheduler import run_channel_job, run_insights_job  # noqa: E402
+from app.services.channel_seed import seed_channels  # noqa: E402
 
 
 def _due_channel_keys() -> list[str]:
@@ -52,6 +53,7 @@ def main() -> None:
     args = parser.parse_args()
 
     init_db()
+    seed_channels()  # apply channels.yaml (voices etc.) — the DB keeps active/daily_cap
 
     if args.insights:
         for key in _active_channel_keys():

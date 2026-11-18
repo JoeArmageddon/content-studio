@@ -1,0 +1,9 @@
+# Minimal deps for scripts/sync_youtube_stats.py (the stats workflow) — none of the video/voice stack.
+sqlalchemy
+psycopg[binary]
+pydantic
+pydantic-settings
+python-dotenv
+requests
+google-api-python-client
+google-auth

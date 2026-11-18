@@ -14,6 +14,7 @@ from app.routes import insights as insights_routes
 from app.routes import runs as runs_routes
 from app.routes import videos as videos_routes
 from app.scheduler import start_scheduler, stop_scheduler
+from app.services.channel_seed import seed_channels
 
 CHANNELS_YAML = Path(__file__).resolve().parent / "config" / "channels.yaml"
 # Milestone 8: FastAPI serves the built dashboard too, matching the
@@ -24,35 +25,10 @@ CHANNELS_YAML = Path(__file__).resolve().parent / "config" / "channels.yaml"
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
-def _seed_channels() -> None:
-    """Upserts channels.yaml into the DB — config file is the source of truth."""
-    with open(CHANNELS_YAML) as f:
-        defs = yaml.safe_load(f)["channels"]
-
-    db = SessionLocal()
-    try:
-        for d in defs:
-            channel = db.query(Channel).filter(Channel.key == d["key"]).first()
-            if channel is None:
-                channel = Channel(key=d["key"])
-                db.add(channel)
-            channel.name = d["name"]
-            channel.niche = d["niche"]
-            channel.subreddits = d.get("subreddits", [])
-            channel.voices = d.get("voices", [])
-            channel.background_queries = d.get("background_queries", [])
-            channel.persona = d.get("persona", {})
-            channel.daily_cap = d.get("daily_cap", 3)
-            channel.active = d.get("active", True)
-        db.commit()
-    finally:
-        db.close()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    _seed_channels()
+    seed_channels()
     start_scheduler()
     yield
     stop_scheduler()

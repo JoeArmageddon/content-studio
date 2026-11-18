@@ -40,6 +40,13 @@ class Channel(Base):
     daily_cap = Column(Integer, default=3)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow)
+    # Live YouTube channel stats — filled by scripts/sync_youtube_stats.py, read by the dashboard.
+    yt_channel_id = Column(String, nullable=True)
+    yt_title = Column(String, nullable=True)
+    subscribers = Column(Integer, nullable=True)
+    total_views = Column(Integer, nullable=True)
+    yt_video_count = Column(Integer, nullable=True)
+    stats_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     runs = relationship("Run", back_populates="channel")
     stories = relationship("Story", back_populates="channel")
@@ -93,6 +100,15 @@ class Video(Base):
     youtube_video_id = Column(String, nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow)
+    # What the dashboard shows: the source story + live YouTube numbers (sync_youtube_stats.py).
+    story_title = Column(String, nullable=True)
+    story_url = Column(String, nullable=True)
+    subreddit = Column(String, nullable=True)
+    duration_seconds = Column(Integer, nullable=True)
+    views = Column(Integer, nullable=True)
+    likes = Column(Integer, nullable=True)
+    comments = Column(Integer, nullable=True)
+    stats_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     run = relationship("Run", back_populates="video")
     channel = relationship("Channel", back_populates="videos")
@@ -127,4 +143,20 @@ class YouTubeToken(Base):
 
     channel_key = Column(String, primary_key=True)
     token_json = Column(Text, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+
+class FootageLibrary(Base):
+    """One row per channel: what background clips are published for it.
+    Written by scripts/publish_background_library.py, read by the dashboard
+    (the clips themselves live in a GitHub Release, which the dashboard
+    can't open)."""
+
+    __tablename__ = "footage_library"
+
+    channel_key = Column(String, primary_key=True)
+    clip_count = Column(Integer, default=0)
+    clips = Column(JSON, default=list)  # [{title, uploader, url, resolution, license, query}]
+    quality = Column(String, nullable=True)  # "1080p" | "legacy-720p"
+    size_mb = Column(Integer, nullable=True)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)

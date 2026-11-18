@@ -37,6 +37,32 @@ def _token() -> str:
     return dict(line.split("=", 1) for line in out.splitlines() if "=" in line)["password"]
 
 
+def _record_library(channel_dir: Path, size_mb: float) -> None:
+    """Mirror what was just published into the DB so the dashboard can show it."""
+    import json
+
+    from app.core.db import SessionLocal, init_db
+    from app.core.models import FootageLibrary
+
+    clips = [
+        {
+            "title": e.get("title"), "uploader": e.get("channel_title"), "url": e.get("url"),
+            "resolution": e.get("source_resolution"), "license": e.get("license"), "query": e.get("query"),
+        }
+        for e in json.loads((channel_dir / "manifest.json").read_text())
+    ]
+    init_db()
+    db = SessionLocal()
+    try:
+        row = db.get(FootageLibrary, channel_dir.name) or FootageLibrary(channel_key=channel_dir.name)
+        row.clips, row.clip_count, row.size_mb = clips, len(clips), int(size_mb)
+        row.quality = "1080p" if all(c["resolution"] for c in clips) else "legacy-720p"
+        db.add(row)
+        db.commit()
+    finally:
+        db.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--channel", default=None)
@@ -76,7 +102,9 @@ def main() -> None:
                     headers={**H, "Content-Type": "application/gzip"}, timeout=600,
                 )
             r.raise_for_status()
-            print(f"uploaded {name} ({archive.stat().st_size / 1e6:.1f} MB)")
+            size_mb = archive.stat().st_size / 1e6
+            print(f"uploaded {name} ({size_mb:.1f} MB)")
+        _record_library(d, size_mb)
 
 
 if __name__ == "__main__":

@@ -54,6 +54,27 @@ def get_db():
         db.close()
 
 
+def _ensure_columns():
+    """create_all() never alters existing tables, so columns added to a model
+    after the table was first created (live stats etc.) are added here —
+    idempotent, works on both Postgres and SQLite."""
+    from sqlalchemy import inspect, text
+    from sqlalchemy.schema import CreateColumn
+
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name not in have:
+                    ddl = CreateColumn(col).compile(dialect=engine.dialect)
+                    conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN {ddl}'))
+                    print(f"[db] added column {table.name}.{col.name}")
+
+
 def init_db():
     from app.core import models  # noqa: F401 — registers tables on Base
     Base.metadata.create_all(bind=engine)
+    _ensure_columns()

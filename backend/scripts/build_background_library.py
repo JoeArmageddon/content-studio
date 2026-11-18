@@ -27,6 +27,7 @@ uploader) — the metadata agent appends it to the video description.
 """
 import argparse
 import glob
+import os
 import shutil
 import subprocess
 import sys
@@ -79,6 +80,14 @@ def _download_segment(url: str, out_prefix: Path) -> tuple[Path, dict]:
         "remote_components": ["ejs:github"],
         "ffmpeg_location": FFMPEG,
     }
+    # If YouTube starts demanding sign-in ("confirm you're not a bot") from this IP, set
+    # YT_COOKIES_BROWSER=chrome to reuse that browser's logged-in session.
+    # Or export a cookies.txt to data/youtube_cookies.txt (gitignored) and it's picked up automatically.
+    cookie_file = DATA_DIR / "youtube_cookies.txt"
+    if cookie_file.exists():
+        base_opts["cookiefile"] = str(cookie_file)
+    elif os.environ.get("YT_COOKIES_BROWSER"):
+        base_opts["cookiesfrombrowser"] = (os.environ["YT_COOKIES_BROWSER"],)
     with yt_dlp.YoutubeDL({**base_opts, "format": "bv*"}) as ydl:
         info = ydl.extract_info(url, download=False)
     duration = float(info.get("duration") or 0)
