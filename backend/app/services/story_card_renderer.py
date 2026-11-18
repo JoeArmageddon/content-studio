@@ -1,44 +1,42 @@
 """
-Story-Card Renderer — Milestone 5.
+Story-Card Renderer.
 
-Renders the pinned tweet/Reddit-post-style overlay PNG shown only during
-the hook: a colored-circle avatar, the channel's persona handle, the hook
-text, and decorative/randomized engagement numbers (not real stats).
-Composited by ffmpeg_render.py onto the video for just the hook's duration.
-Output is a transparent 1080x1920 PNG (full frame) with the card drawn at
-a fixed position, so the video-assembly step can overlay it directly with
-no extra positioning math.
+Renders the Reddit/tweet-style post card shown at the top of the video while
+the hook is spoken: the CHANNEL'S LOGO as the avatar, the channel name with
+a verified tick, the subreddit, the hook text, and the story's real
+upvote/comment counts. Output is a transparent 1080x1920 PNG so the
+assembler can overlay it with no positioning math.
 
-Avatar note: true colored-emoji glyph rendering (persona.avatar_emoji, e.g.
-"⚖️") needs a platform color-emoji font and doesn't render reliably/
-portably between dev (macOS) and the Linux Docker deploy target. Using a
-colored circle + the handle's first letter instead — simpler, universal,
-no font-availability risk. avatar_emoji stays in config for a possible
-future revisit (e.g. pre-rendering a small emoji PNG once per channel with
-a real emoji font, cached the same way background clips are).
+Logos live in app/assets/logos/<channel_key>.png with a meta.json giving each
+channel's display name; scripts/fetch_channel_logos.py pulls them from the
+authorized YouTube channels. A channel with no logo yet gets a coloured
+monogram circle instead.
 """
 import hashlib
+import json
+import math
 import os
-import random
-from typing import Any
+from typing import Any, Optional
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-_FONT_PATH = __file__.rsplit("/services/", 1)[0] + "/assets/fonts/Inter-Bold.ttf"
+_ASSETS = __file__.rsplit("/services/", 1)[0] + "/assets"
+_FONT_PATH = _ASSETS + "/fonts/Inter-Bold.ttf"
+_LOGO_DIR = _ASSETS + "/logos"
 
 _CANVAS = (1080, 1920)
-_CARD_MARGIN_X = 80
-_CARD_TOP = 260
-_CARD_PADDING = 40
-_AVATAR_SIZE = 72
-_CARD_RADIUS = 36
-_CARD_BG = (255, 255, 255, 255)
-_TEXT_COLOR = (20, 20, 20, 255)
-_MUTED_COLOR = (110, 110, 110, 255)
+_CARD_MARGIN_X = 70
+_CARD_TOP = 300
+_CARD_PADDING = 38
+_AVATAR_SIZE = 92
+_CARD_RADIUS = 38
+_TEXT = (17, 17, 17, 255)
+_MUTED = (96, 96, 96, 255)
+_BLUE = (29, 155, 240, 255)
 
 _AVATAR_PALETTE = [
-    (230, 57, 70), (69, 123, 157), (42, 157, 143), (233, 196, 106),
-    (244, 162, 97), (138, 96, 168), (38, 70, 83), (231, 111, 81),
+    (230, 57, 70), (69, 123, 157), (42, 157, 143), (233, 140, 60),
+    (138, 96, 168), (38, 70, 83), (231, 111, 81),
 ]
 
 
@@ -51,16 +49,10 @@ def _font(size: int, weight: int = 700) -> ImageFont.FreeTypeFont:
     return font
 
 
-def _avatar_color(handle: str) -> tuple[int, int, int]:
-    idx = int(hashlib.md5(handle.encode()).hexdigest(), 16) % len(_AVATAR_PALETTE)
-    return _AVATAR_PALETTE[idx]
-
-
-def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
-    words = text.split()
+def _wrap(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
     lines: list[str] = []
     current = ""
-    for word in words:
+    for word in text.split():
         candidate = f"{current} {word}".strip()
         if draw.textlength(candidate, font=font) <= max_width:
             current = candidate
@@ -73,90 +65,141 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFon
     return lines
 
 
-def render_card(hook_text: str, persona: dict[str, Any], out_path: str) -> str:
-    handle = persona.get("handle") or "@storyteller"
+def _fmt_count(n: int) -> str:
+    n = int(n or 0)
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M".replace(".0M", "M")
+    if n >= 1000:
+        return f"{n / 1000:.1f}K".replace(".0K", "K")
+    return str(n)
+
+
+def _circle_crop(img: Image.Image, size: int) -> Image.Image:
+    img = img.convert("RGBA").resize((size, size), Image.LANCZOS)
+    scale = 4
+    mask = Image.new("L", (size * scale, size * scale), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size * scale - 1, size * scale - 1), fill=255)
+    mask = mask.resize((size, size), Image.LANCZOS)
+    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    out.paste(img, (0, 0), mask)
+    return out
+
+
+def _load_meta() -> dict[str, Any]:
+    try:
+        with open(os.path.join(_LOGO_DIR, "meta.json")) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _avatar(channel_key: str, label: str, size: int) -> Image.Image:
+    path = os.path.join(_LOGO_DIR, f"{channel_key}.png")
+    if os.path.exists(path):
+        return _circle_crop(Image.open(path), size)
+    # Monogram fallback
+    color = _AVATAR_PALETTE[int(hashlib.md5(channel_key.encode()).hexdigest(), 16) % len(_AVATAR_PALETTE)]
+    scale = 4
+    big = Image.new("RGBA", (size * scale, size * scale), (0, 0, 0, 0))
+    d = ImageDraw.Draw(big)
+    d.ellipse((0, 0, size * scale - 1, size * scale - 1), fill=color + (255,))
+    f = _font(size * scale // 2, 800)
+    ch = (label.lstrip("@")[:1] or "S").upper()
+    bb = d.textbbox((0, 0), ch, font=f)
+    d.text(((size * scale - (bb[2] - bb[0])) / 2 - bb[0], (size * scale - (bb[3] - bb[1])) / 2 - bb[1]), ch, font=f, fill=(255, 255, 255, 255))
+    return big.resize((size, size), Image.LANCZOS)
+
+
+def _verified_tick(draw: ImageDraw.ImageDraw, x: int, y: int, size: int = 30) -> None:
+    draw.ellipse((x, y, x + size, y + size), fill=_BLUE)
+    pts = [(x + size * 0.27, y + size * 0.52), (x + size * 0.44, y + size * 0.68), (x + size * 0.74, y + size * 0.34)]
+    draw.line(pts, fill=(255, 255, 255, 255), width=max(3, size // 9), joint="curve")
+
+
+def _heart(draw: ImageDraw.ImageDraw, x: int, y: int, size: int, color) -> None:
+    pts = []
+    for i in range(0, 361, 6):
+        t = math.radians(i)
+        hx = 16 * math.sin(t) ** 3
+        hy = -(13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t))
+        pts.append((x + size / 2 + hx * size / 34, y + size / 2 + 1 + hy * size / 34))
+    draw.line(pts, fill=color, width=3, joint="curve")
+
+
+def _bubble(draw: ImageDraw.ImageDraw, x: int, y: int, size: int, color) -> None:
+    draw.rounded_rectangle((x, y + 2, x + size, y + size * 0.78), radius=size * 0.3, outline=color, width=3)
+    draw.line([(x + size * 0.28, y + size * 0.78), (x + size * 0.2, y + size * 0.98), (x + size * 0.5, y + size * 0.78)], fill=color, width=3, joint="curve")
+
+
+def _share(draw: ImageDraw.ImageDraw, x: int, y: int, size: int, color) -> None:
+    draw.line([(x, y + size * 0.45), (x, y + size), (x + size, y + size), (x + size, y + size * 0.45)], fill=color, width=3, joint="curve")
+    cx = x + size / 2
+    draw.line([(cx, y + size * 0.65), (cx, y)], fill=color, width=3)
+    draw.line([(cx - size * 0.22, y + size * 0.24), (cx, y), (cx + size * 0.22, y + size * 0.24)], fill=color, width=3, joint="curve")
+
+
+def render_card(
+    hook_text: str,
+    persona: dict[str, Any],
+    out_path: str,
+    channel: Optional[dict[str, Any]] = None,
+    story: Optional[dict[str, Any]] = None,
+) -> str:
+    channel = channel or {}
+    story = story or {}
+    key = channel.get("key", "unknown")
+    meta = _load_meta().get(key, {})
+    name = meta.get("title") or channel.get("name") or (persona.get("handle") or "@storyteller").lstrip("@")
+    subreddit = story.get("subreddit")
     hook_text = (hook_text or "").strip() or "You won't believe what happened next..."
 
     img = Image.new("RGBA", _CANVAS, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    card_width = _CANVAS[0] - 2 * _CARD_MARGIN_X
-    inner_width = card_width - 2 * _CARD_PADDING
+    card_w = _CANVAS[0] - 2 * _CARD_MARGIN_X
+    inner_w = card_w - 2 * _CARD_PADDING
+    name_font, sub_font = _font(36, 800), _font(26, 600)
+    hook_font, stat_font = _font(44, 800), _font(28, 700)
 
-    handle_font = _font(30, 700)
-    hook_font = _font(38, 800)
-    stats_font = _font(26, 600)
+    hook_lines = _wrap(draw, hook_text, hook_font, inner_w)
+    line_h = int(hook_font.size * 1.28)
+    hook_block_h = len(hook_lines) * line_h
+    stats_h = 36
+    card_h = _CARD_PADDING + _AVATAR_SIZE + 26 + hook_block_h + 26 + stats_h + _CARD_PADDING - 6
+    x0, y0 = _CARD_MARGIN_X, _CARD_TOP
+    box = (x0, y0, x0 + card_w, y0 + card_h)
 
-    hook_lines = _wrap_text(draw, hook_text, hook_font, inner_width)
-    line_height = int(hook_font.size * 1.25)
+    shadow = Image.new("RGBA", _CANVAS, (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle((box[0], box[1] + 10, box[2], box[3] + 10), radius=_CARD_RADIUS, fill=(0, 0, 0, 95))
+    img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(18)))
+    draw.rounded_rectangle(box, radius=_CARD_RADIUS, fill=(255, 255, 255, 255))
 
-    header_height = _AVATAR_SIZE
-    hook_block_height = len(hook_lines) * line_height
-    stats_height = 40
-    card_height = (
-        _CARD_PADDING + header_height + 24 + hook_block_height + 28 + stats_height + _CARD_PADDING
-    )
+    ax, ay = x0 + _CARD_PADDING, y0 + _CARD_PADDING
+    img.alpha_composite(_avatar(key, name, _AVATAR_SIZE), (ax, ay))
 
-    card_box = (_CARD_MARGIN_X, _CARD_TOP, _CARD_MARGIN_X + card_width, _CARD_TOP + card_height)
+    tx = ax + _AVATAR_SIZE + 22
+    two_line = bool(subreddit)
+    name_y = ay + (8 if two_line else (_AVATAR_SIZE - name_font.size) // 2 - 4)
+    draw.text((tx, name_y), name, font=name_font, fill=_TEXT)
+    _verified_tick(draw, int(tx + draw.textlength(name, font=name_font) + 12), name_y + 6)
+    if two_line:
+        draw.text((tx, ay + 54), f"r/{subreddit}", font=sub_font, fill=_MUTED)
 
-    # Soft drop shadow: a blurred dark rounded-rect drawn on its own layer
-    # first, offset slightly below the card.
-    shadow_layer = Image.new("RGBA", _CANVAS, (0, 0, 0, 0))
-    shadow_draw = ImageDraw.Draw(shadow_layer)
-    shadow_offset = 10
-    shadow_box = (
-        card_box[0], card_box[1] + shadow_offset, card_box[2], card_box[3] + shadow_offset,
-    )
-    shadow_draw.rounded_rectangle(shadow_box, radius=_CARD_RADIUS, fill=(0, 0, 0, 90))
-    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(18))
-    img.alpha_composite(shadow_layer)  # modifies img in place — `draw` stays valid
-
-    draw.rounded_rectangle(card_box, radius=_CARD_RADIUS, fill=_CARD_BG)
-
-    # Avatar (colored circle + first letter of the handle)
-    avatar_x0 = _CARD_MARGIN_X + _CARD_PADDING
-    avatar_y0 = _CARD_TOP + _CARD_PADDING
-    avatar_box = (avatar_x0, avatar_y0, avatar_x0 + _AVATAR_SIZE, avatar_y0 + _AVATAR_SIZE)
-    draw.ellipse(avatar_box, fill=_avatar_color(handle))
-    initial = handle.lstrip("@")[:1].upper() or "S"
-    initial_font = _font(34, 800)
-    ibbox = draw.textbbox((0, 0), initial, font=initial_font)
-    iw, ih = ibbox[2] - ibbox[0], ibbox[3] - ibbox[1]
-    draw.text(
-        (avatar_x0 + (_AVATAR_SIZE - iw) / 2 - ibbox[0], avatar_y0 + (_AVATAR_SIZE - ih) / 2 - ibbox[1]),
-        initial, font=initial_font, fill=(255, 255, 255, 255),
-    )
-
-    # Handle, next to avatar, vertically centered on it
-    handle_x = avatar_x0 + _AVATAR_SIZE + 20
-    hbbox = draw.textbbox((0, 0), handle, font=handle_font)
-    handle_h = hbbox[3] - hbbox[1]
-    draw.text(
-        (handle_x, avatar_y0 + (_AVATAR_SIZE - handle_h) / 2 - hbbox[1]),
-        handle, font=handle_font, fill=_TEXT_COLOR,
-    )
-
-    # Hook text block
-    hook_y = avatar_y0 + _AVATAR_SIZE + 24
+    hy = ay + _AVATAR_SIZE + 26
     for i, line in enumerate(hook_lines):
-        draw.text(
-            (_CARD_MARGIN_X + _CARD_PADDING, hook_y + i * line_height),
-            line, font=hook_font, fill=_TEXT_COLOR,
-        )
+        draw.text((ax, hy + i * line_h), line, font=hook_font, fill=_TEXT)
 
-    # Decorative engagement stats
-    stats_y = hook_y + hook_block_height + 28
-    likes = random.choice([f"{random.randint(1, 99)}K", "99+", f"{random.randint(100, 999)}"])
-    shares = random.choice(["99+", f"{random.randint(10, 99)}", f"{random.randint(1, 9)}K"])
-    draw.text(
-        (_CARD_MARGIN_X + _CARD_PADDING, stats_y),
-        f"♥ {likes}", font=stats_font, fill=_MUTED_COLOR,
-    )
-    stats_left_width = draw.textlength(f"♥ {likes}", font=stats_font)
-    draw.text(
-        (_CARD_MARGIN_X + _CARD_PADDING + stats_left_width + 40, stats_y),
-        f"⇧ {shares}", font=stats_font, fill=_MUTED_COLOR,
-    )
+    sy = hy + hook_block_h + 26
+    _heart(draw, ax, sy + 2, 30, _MUTED)
+    likes = _fmt_count(story.get("score"))
+    draw.text((ax + 42, sy), likes, font=stat_font, fill=_MUTED)
+    bx = ax + 42 + int(draw.textlength(likes, font=stat_font)) + 44
+    _bubble(draw, bx, sy + 2, 30, _MUTED)
+    draw.text((bx + 42, sy), _fmt_count(story.get("num_comments")), font=stat_font, fill=_MUTED)
+    share_w = int(draw.textlength("Share", font=stat_font))
+    sx = x0 + card_w - _CARD_PADDING - share_w
+    draw.text((sx, sy), "Share", font=stat_font, fill=_MUTED)
+    _share(draw, sx - 46, sy + 2, 28, _MUTED)
 
     out_dir = os.path.dirname(out_path)
     if out_dir:

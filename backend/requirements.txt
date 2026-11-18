@@ -39,3 +39,6 @@ imageio-ffmpeg     # bundles a static ffmpeg binary — no system ffmpeg install
 google-api-python-client
 google-auth
 google-auth-oauthlib
+
+# --- Captions: word-level timing for the rolling subtitles ---
+faster-whisper

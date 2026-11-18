@@ -145,7 +145,7 @@ def search_pixabay(query: str, per_page: int = 5) -> list[dict[str, Any]]:
     return results
 
 
-def search_cc_youtube(query: str, max_results: int = 5) -> list[dict[str, Any]]:
+def search_cc_youtube(query: str, max_results: int = 5, duration: str = "medium") -> list[dict[str, Any]]:
     """Metadata search only — see download_youtube_cc_clip() for the yt-dlp
     download step. NOT verified live (no API key available while building)."""
     if not settings.youtube_data_api_key:
@@ -159,7 +159,7 @@ def search_cc_youtube(query: str, max_results: int = 5) -> list[dict[str, Any]]:
             "part": "snippet",
             "type": "video",
             "videoLicense": "creativeCommon",
-            "videoDuration": "medium",  # 4-20 min source clips, trimmed down after download
+            "videoDuration": duration,  # "short" (<4 min, includes vertical Shorts) / "medium" / "long"
             "maxResults": max_results,
         },
         timeout=15,

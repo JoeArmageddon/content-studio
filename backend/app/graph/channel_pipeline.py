@@ -32,7 +32,7 @@ def _story_card_node(state: PipelineState) -> PipelineState:
     run_id = state.get("run_id", "x")
     out_path = str(DATA_DIR / "story_cards" / f"{key}_{run_id}.png")
     try:
-        state["story_card_path"] = render_card(state.get("hook", ""), persona, out_path)
+        state["story_card_path"] = render_card(state.get("hook", ""), persona, out_path, channel=channel, story=state.get("story"))
     except Exception as exc:  # noqa: BLE001 — story-card failure shouldn't crash the run
         state["story_card_path"] = None
         state["error"] = f"Story-card rendering failed: {exc}"

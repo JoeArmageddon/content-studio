@@ -14,7 +14,7 @@ from app.core.config import DATA_DIR
 from app.graph.state import PipelineState
 from app.services import tts_client
 
-_FALLBACK_VOICES = ["am_adam", "af_heart"]  # used only if a channel has no `voices` configured
+_FALLBACK_VOICES = ["af_jessica"]  # used only if a channel has no `voices` configured
 
 
 def run(state: PipelineState) -> PipelineState:

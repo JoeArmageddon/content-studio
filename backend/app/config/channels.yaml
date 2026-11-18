@@ -21,7 +21,7 @@ channels:
     name: Cheats
     niche: "Cheating / infidelity confession stories"
     subreddits: ["survivinginfidelity", "relationship_advice", "cheating_stories"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["oddly satisfying soap cutting asmr", "kinetic sand cutting asmr"]
     active: true
@@ -33,7 +33,7 @@ channels:
     name: TIFU
     niche: "Today I F***ed Up — embarrassing/consequence stories"
     subreddits: ["tifu"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["minecraft parkour gameplay", "subway surfers gameplay"]
     active: true
@@ -45,7 +45,7 @@ channels:
     name: Horror
     niche: "Horror / creepy real-experience stories"
     subreddits: ["nosleep", "shortscarystories", "letsnotmeet"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["foggy forest atmospheric night", "abandoned house exploration"]
     active: true
@@ -57,7 +57,7 @@ channels:
     name: Family
     niche: "Family drama stories"
     subreddits: ["entitledparents", "JUSTNOFAMILY", "familydrama"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["satisfying cooking asmr", "baking asmr close up"]
     active: true
@@ -69,7 +69,7 @@ channels:
     name: Confessions
     niche: "Anonymous confession stories"
     subreddits: ["confession", "confessions", "offmychest"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["rain on window relaxing", "night city drive pov"]
     active: true
@@ -81,7 +81,7 @@ channels:
     name: AITA
     niche: "Am I The Asshole — moral-judgment stories"
     subreddits: ["AmItheAsshole"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["minecraft parkour gameplay", "satisfying slime asmr"]
     active: true
@@ -93,7 +93,7 @@ channels:
     name: "Real-Life Survival"
     niche: "Real-life survival / dangerous-situation stories"
     subreddits: ["survival", "TrueOffMyChest", "CampingandHiking"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["hiking forest trail nature", "mountain landscape drone"]
     active: true
@@ -105,7 +105,7 @@ channels:
     name: Workplace
     niche: "Workplace drama / toxic boss / coworker stories"
     subreddits: ["antiwork", "MaliciousCompliance", "pettyrevenge"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["city timelapse aesthetic", "cozy office desk aesthetic"]
     active: true
@@ -117,7 +117,7 @@ channels:
     name: AskReddit
     niche: "AskReddit thread-style stories (best top-comment stories per thread)"
     subreddits: ["AskReddit"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["subway surfers gameplay", "temple run gameplay"]
     active: true
@@ -129,7 +129,7 @@ channels:
     name: "Rich vs Poor"
     niche: "Wealth-gap / class-contrast stories"
     subreddits: ["povertyfinance", "fatFIRE", "childfree"]
-    voices: ["am_adam", "af_heart", "af_bella"]
+    voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["luxury lifestyle aesthetic", "city skyline drone timelapse"]
     active: true

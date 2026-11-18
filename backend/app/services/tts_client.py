@@ -73,7 +73,8 @@ def list_voices() -> list[str]:
 
 
 def _jitter_speed() -> float:
-    return round(random.uniform(0.95, 1.05), 3)
+    # ~1.1x: the brisk, bright pacing short-form viewers are used to (CapCut-style narration)
+    return round(random.uniform(1.08, 1.14), 3)
 
 
 def synthesize(text: str, voice: str, out_path: str, speed: Optional[float] = None) -> str:

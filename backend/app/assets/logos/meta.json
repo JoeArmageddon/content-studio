@@ -1,0 +1,42 @@
+{
+  "aita": {
+    "title": "AITA Verdicts",
+    "handle": "@storique_aitaverdicts"
+  },
+  "workplace": {
+    "title": "Workplace Tales",
+    "handle": ""
+  },
+  "reallife_survival": {
+    "title": "Survival Tales",
+    "handle": ""
+  },
+  "rich_v_poor": {
+    "title": "Rich vs Poor Tales",
+    "handle": ""
+  },
+  "cheats": {
+    "title": "Caught Tales",
+    "handle": ""
+  },
+  "tifu": {
+    "title": "TIFU Reads",
+    "handle": ""
+  },
+  "horror": {
+    "title": "Midnight Tales",
+    "handle": ""
+  },
+  "family": {
+    "title": "Family Drama Vault",
+    "handle": ""
+  },
+  "confessions": {
+    "title": "Anon Confessions",
+    "handle": ""
+  },
+  "askreddit": {
+    "title": "AskReddit Vault",
+    "handle": ""
+  }
+}
