@@ -8,6 +8,7 @@ architecture doc explicitly allows a rules pass here instead of a second
 LLM call. Extend _BANNED_PHRASES before any real/production use.
 """
 from app.graph.state import PipelineState
+from app.services.content_filter import contains_slur, soften
 
 # Placeholder starter list — extend with real slurs/policy-risk phrases
 # before production use. Kept short and clearly non-exhaustive on purpose.
@@ -22,6 +23,12 @@ _MAX_WORDS = 220
 def run(state: PipelineState) -> PipelineState:
     script = state.get("script") or ""
     notes: list[str] = []
+
+    # Tone down slurs everywhere downstream (voice, captions, story card, metadata).
+    if contains_slur(script) or contains_slur(state.get("hook")):
+        script, state["hook"] = soften(script) or "", soften(state.get("hook"))
+        state["script"] = script
+        notes.append("Slur(s) toned down in script/hook.")
 
     if not script:
         notes.append("Script is empty — upstream hook/script generation likely failed or was skipped.")

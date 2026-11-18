@@ -36,6 +36,8 @@ _SYSTEM_TEMPLATE = (
     "- Stay faithful to the story: use ONLY events, people, numbers and "
     "details that are in the source text. Never invent facts, names, quotes "
     "or outcomes. If something is unclear, leave it out.\n"
+    "- Never write slurs. If the story contains one, say 'the N-word' or "
+    "'a slur' instead; keep everything else as it happened.\n"
     "- Short, punchy sentences — the way someone actually narrates a video "
     "out loud, not the way someone writes an article.\n"
     "- {tone_hint}\n"

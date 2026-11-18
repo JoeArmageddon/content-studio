@@ -19,7 +19,7 @@ _SYSTEM = (
     "one or two short sentences, no more than 20 words total. Create "
     "curiosity or tension WITHOUT giving away the ending or the moral of the "
     "story. Speak in first person, as the story's narrator, in a natural "
-    "spoken tone (not written/formal). Output ONLY the hook itself — no "
+    "spoken tone (not written/formal). Never write slurs (say 'a slur' if needed). Output ONLY the hook itself — no "
     "quotation marks, no hashtags, no explanation, no labels like 'Hook:'."
 )
 

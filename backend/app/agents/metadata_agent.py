@@ -15,6 +15,7 @@ import json
 from app.agents import competitor_scan_agent
 from app.graph.state import PipelineState
 from app.services import insights, llm_clients
+from app.services.content_filter import soften
 
 _SYSTEM = (
     "You write YouTube metadata for a short-form narrated video retelling a "
@@ -59,6 +60,10 @@ def run(state: PipelineState) -> PipelineState:
     except Exception as exc:  # noqa: BLE001 — metadata failure shouldn't crash the run
         state["metadata"] = {"title": title_fallback, "description": "", "tags": []}
         state["error"] = f"Metadata generation failed: {exc}"
+
+    meta = state["metadata"]
+    meta["title"] = soften(meta.get("title")) or "Untitled"
+    meta["description"] = soften(meta.get("description")) or ""
 
     credit = state.get("background_credit")
     if credit:
