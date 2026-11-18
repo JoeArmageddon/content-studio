@@ -21,10 +21,14 @@ _database_url = settings.database_url
 if _database_url.startswith("postgresql://") or _database_url.startswith("postgres://"):
     _database_url = "postgresql+psycopg://" + _database_url.split("://", 1)[1]
 
-engine = create_engine(
-    _database_url,
-    connect_args={"check_same_thread": False} if _is_sqlite else {},
-)
+# Supabase's pooled connection (port 6543) is pgbouncer in transaction mode,
+# which can't keep server-side prepared statements between queries — psycopg3
+# auto-prepares repeated queries by default, which then fails intermittently
+# with "prepared statement _pg3_0 already exists" (hit while authorizing
+# channels). prepare_threshold=None turns auto-preparing off.
+_connect_args = {"check_same_thread": False} if _is_sqlite else {"prepare_threshold": None}
+
+engine = create_engine(_database_url, connect_args=_connect_args)
 
 if _is_sqlite:
     # WAL mode lets readers and a writer proceed concurrently instead of
