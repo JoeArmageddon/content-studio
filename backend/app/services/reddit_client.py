@@ -180,9 +180,9 @@ def _fetch_arctic_shift(subreddit: str, limit: int) -> list[dict[str, Any]]:
 # These have NO post body — the "story" is the thread itself: the question plus
 # its best top-level answers. Reddit's own endpoints are blocked from CI, so the
 # answers come from the same arctic-shift archive as everything else.
-_THREAD_SUBREDDITS = {"askreddit"}
+_THREAD_SUBREDDITS = {"askreddit", "askmen", "nostupidquestions"}
 _ARCTIC_COMMENTS_URL = "https://arctic-shift.photon-reddit.com/api/comments/search"
-_ANSWER_MIN_WORDS, _ANSWER_MAX_WORDS, _ANSWERS_PER_THREAD, _THREADS_TO_SCAN = 14, 130, 4, 8
+_ANSWER_MIN_WORDS, _ANSWER_MAX_WORDS, _ANSWERS_PER_THREAD, _THREADS_TO_SCAN = 12, 130, 4, 12
 _URL_RE = re.compile(r"https?://|www\.", re.I)
 
 

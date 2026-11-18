@@ -116,7 +116,7 @@ channels:
   - key: askreddit
     name: AskReddit
     niche: "AskReddit thread-style stories (best top-comment stories per thread)"
-    subreddits: ["AskReddit"]
+    subreddits: ["AskReddit", "AskMen", "NoStupidQuestions"]
     voices: ["af_jessica"]
     daily_cap: 3
     background_queries: ["subway surfers gameplay", "temple run gameplay"]
