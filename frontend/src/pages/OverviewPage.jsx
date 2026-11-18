@@ -44,9 +44,9 @@ export default function OverviewPage() {
         <Stat label="Total views" value={num(t.views)} sub={`${num(t.likes)} likes`} />
         <Stat label="Subscribers" value={num(t.subscribers)} sub="across all channels" />
         <Stat
-          label="Run success · 7d"
+          label="Pipeline success"
           value={rate === null ? "–" : `${rate}%`}
-          sub={`${h.done_7d} ok · ${h.failed_7d} failed`}
+          sub={`${h.done_7d} ok · ${h.failed_7d} failed · since go-live`}
           tone={rate === null ? undefined : rate >= 80 ? "ok" : rate < 50 ? "bad" : undefined}
         />
         <Stat label="Channels live" value={`${t.active}/${t.channels}`} sub={`${t.hd_footage} with HD footage`} />

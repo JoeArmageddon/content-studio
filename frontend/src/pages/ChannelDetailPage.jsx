@@ -48,7 +48,7 @@ export default function ChannelDetailPage() {
         <Stat label="Likes" value={num(c.likes)} />
         <Stat label="Published" value={c.published_total} sub={`last ${ago(c.last_published_at)}`} />
         <Stat label="Today" value={`${c.published_today}/${c.daily_cap}`} />
-        <Stat label="Runs · 7d" value={`${c.runs_7d_done} ok`} sub={`${c.runs_7d_failed} failed`} tone={c.runs_7d_failed > c.runs_7d_done ? "bad" : undefined} />
+        <Stat label="Runs since go-live" value={`${c.runs_7d_done} ok`} sub={`${c.runs_7d_failed} failed`} tone={c.runs_7d_failed > c.runs_7d_done ? "bad" : undefined} />
       </div>
 
       <Section title="Recent runs">

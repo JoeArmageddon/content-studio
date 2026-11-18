@@ -171,6 +171,10 @@ app.add_middleware(
 
 # ---------------------------------------------------------------- helpers
 
+# Health stats and "last run failed" alerts ignore anything before this moment:
+# the first day was setup (unauthorized channels, early bugs) and would otherwise
+# drag the success rate down forever. Override with HEALTH_SINCE (ISO timestamp).
+HEALTH_SINCE = datetime.fromisoformat(os.environ.get("HEALTH_SINCE", "2026-11-18T08:30:00+00:00"))
 CRON_HOURS_UTC = [8, 13, 18]  # keep in sync with .github/workflows/pipeline.yml
 STATS_CRON = "every 3 hours (:15)"
 
@@ -277,11 +281,12 @@ def _aggregates(db: Session) -> tuple[set, dict, dict, dict]:
         func.coalesce(func.sum(Video.likes), 0), func.max(Video.published_at),
     ).filter(Video.status == "published").group_by(Video.channel_id):
         agg[cid] = {"published": n, "views": int(views), "likes": int(likes), "last_published": last}
-    week = _utcnow() - timedelta(days=7)
+    week = max(HEALTH_SINCE, _utcnow() - timedelta(days=7))
     for cid, status, n in db.query(Run.channel_id, Run.status, func.count(Run.id)).filter(
-        Run.started_at >= week, Run.status.in_(["done", "failed"])
+        Run.started_at >= week, Run.status.in_(["done", "dry_run", "failed"])
     ).group_by(Run.channel_id, Run.status):
-        agg.setdefault(cid, {})["done7" if status == "done" else "failed7"] = n
+        key = "failed7" if status == "failed" else "done7"
+        agg.setdefault(cid, {})[key] = agg.get(cid, {}).get(key, 0) + n
     for cid in {r[0] for r in db.query(Run.channel_id).distinct()}:
         last = db.query(Run).filter(Run.channel_id == cid).order_by(Run.id.desc()).first()
         d = agg.setdefault(cid, {})
@@ -456,10 +461,11 @@ def overview(db: Session = Depends(get_db)):
         if k in days:
             days[k]["failed"] += 1
 
-    week = now - timedelta(days=7)
-    done7 = db.query(func.count(Run.id)).filter(Run.status == "done", Run.started_at >= week).scalar() or 0
-    failed7 = db.query(func.count(Run.id)).filter(Run.status == "failed", Run.started_at >= week).scalar() or 0
-    failed24 = db.query(func.count(Run.id)).filter(Run.status == "failed", Run.started_at >= now - timedelta(hours=24)).scalar() or 0
+    since = max(HEALTH_SINCE, now - timedelta(days=7))
+    # A finished dry run means the pipeline worked end to end, so it counts as healthy.
+    done7 = db.query(func.count(Run.id)).filter(Run.status.in_(["done", "dry_run"]), Run.started_at >= since).scalar() or 0
+    failed7 = db.query(func.count(Run.id)).filter(Run.status == "failed", Run.started_at >= since).scalar() or 0
+    failed24 = db.query(func.count(Run.id)).filter(Run.status == "failed", Run.started_at >= max(HEALTH_SINCE, now - timedelta(hours=24))).scalar() or 0
     last_run = db.query(Run).order_by(Run.id.desc()).first()
     chans = {c.id: c for c in channels}
 
@@ -470,7 +476,7 @@ def overview(db: Session = Depends(get_db)):
         if not c["active"]:
             why = " Its footage is still the old 720p set." if c["footage_quality"] == "legacy-720p" else ""
             alerts.append({"level": "warn", "title": f"{c['name']} is paused", "detail": "Not part of scheduled runs." + why, "channel_key": c["key"]})
-        elif c["last_run_status"] == "failed":
+        elif c["last_run_status"] == "failed" and c["last_run_at"] and _aware(c["last_run_at"]) >= HEALTH_SINCE:
             alerts.append({"level": "error", "title": f"{c['name']}: last run failed", "detail": (c["last_run_error"] or "No reason was recorded (run predates error capture).")[:220], "channel_key": c["key"]})
         elif c["active"] and c["last_published_at"] and now - _aware(c["last_published_at"]) > timedelta(hours=48):
             alerts.append({"level": "warn", "title": f"{c['name']}: nothing posted in 48h", "detail": "Active, but no recent upload.", "channel_key": c["key"]})
@@ -511,6 +517,7 @@ def overview(db: Session = Depends(get_db)):
         "health": {
             "success_rate_7d": round(100 * done7 / (done7 + failed7)) if (done7 + failed7) else None,
             "done_7d": done7, "failed_7d": failed7, "failed_24h": failed24,
+            "since": max(HEALTH_SINCE, now - timedelta(days=7)),
             "last_run": _run_dict(last_run, chans.get(last_run.channel_id)) if last_run else None,
             "next_runs": _next_runs(),
             "stats_updated_at": max(stamps) if stamps else None,

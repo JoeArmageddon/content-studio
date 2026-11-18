@@ -176,6 +176,85 @@ def _fetch_arctic_shift(subreddit: str, limit: int) -> list[dict[str, Any]]:
     return stories[:limit]
 
 
+# --- Question-only subreddits (AskReddit) -------------------------------------
+# These have NO post body — the "story" is the thread itself: the question plus
+# its best top-level answers. Reddit's own endpoints are blocked from CI, so the
+# answers come from the same arctic-shift archive as everything else.
+_THREAD_SUBREDDITS = {"askreddit"}
+_ARCTIC_COMMENTS_URL = "https://arctic-shift.photon-reddit.com/api/comments/search"
+_ANSWER_MIN_WORDS, _ANSWER_MAX_WORDS, _ANSWERS_PER_THREAD, _THREADS_TO_SCAN = 14, 130, 4, 8
+_URL_RE = re.compile(r"https?://|www\.", re.I)
+
+
+def _usable_answer(c: dict) -> bool:
+    body = (c.get("body") or "").strip()
+    n = len(body.split())
+    return (
+        c.get("parent_id", "").startswith("t3_")  # top-level answers only
+        and body not in ("[removed]", "[deleted]")
+        and c.get("author") not in ("AutoModerator", "[deleted]")
+        and _ANSWER_MIN_WORDS <= n <= _ANSWER_MAX_WORDS
+        and not _URL_RE.search(body)
+    )
+
+
+def _fetch_arctic_threads(subreddit: str, limit: int) -> list[dict[str, Any]]:
+    now = time.time()
+    fmt = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t))  # noqa: E731
+    resp = requests.get(
+        _ARCTIC_URL,
+        params={
+            "subreddit": subreddit,
+            "after": fmt(now - _ARCTIC_WINDOW_DAYS * 86400),
+            "before": fmt(now - _ARCTIC_MIN_AGE_HOURS * 3600),
+            "limit": 100,
+            "sort": "desc",
+        },
+        headers=_HEADERS,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    posts = [
+        p for p in resp.json().get("data", [])
+        if not p.get("over_18") and not p.get("stickied")
+        and not _META_TITLE_RE.search(p.get("title", "")) and (p.get("title") or "").strip().endswith("?")
+    ]
+    # Archive scores for fresh posts are unsettled — comment count is the reliable engagement signal.
+    posts.sort(key=lambda p: p.get("num_comments", 0), reverse=True)
+
+    stories: list[dict[str, Any]] = []
+    for post in posts[:_THREADS_TO_SCAN]:
+        try:
+            cr = requests.get(
+                _ARCTIC_COMMENTS_URL,
+                params={"link_id": post["id"], "limit": 100, "sort": "desc"},
+                headers=_HEADERS, timeout=30,
+            )
+            cr.raise_for_status()
+            comments = cr.json().get("data", [])
+        except Exception as exc:  # noqa: BLE001 — skip this thread, try the next
+            print(f"WARNING: comments fetch failed for {post['id']}: {exc}")
+            continue
+        answers = sorted((c for c in comments if _usable_answer(c)), key=lambda c: c.get("score", 0), reverse=True)
+        if len(answers) < 3:
+            continue  # not enough substance for a ~45s short
+        picked = answers[:_ANSWERS_PER_THREAD]
+        body = "\n\n".join(f"Answer {i}: {a['body'].strip()}" for i, a in enumerate(picked, 1))
+        stories.append(
+            {
+                "source": "reddit",
+                "source_id": post["id"],
+                "title": post["title"].strip(),
+                "content": f"Question asked on r/{subreddit}: {post['title'].strip()}\n\n{body}",
+                "subreddit": subreddit,
+                "score": post.get("num_comments", 0) * 5 + sum(a.get("score", 0) for a in picked),
+                "num_comments": post.get("num_comments", 0),
+            }
+        )
+    stories.sort(key=lambda x: x["score"], reverse=True)
+    return stories[:limit]
+
+
 def _fetch_praw(subreddit: str, limit: int) -> list[dict[str, Any]]:
     import praw  # imported lazily — only needed when credentials are configured
 
@@ -213,7 +292,9 @@ def fetch_stories(subreddits: list[str], limit: int = 10) -> list[dict[str, Any]
     rss_calls_made = False
     for subreddit in subreddits:
         fetched = False
-        for fetcher in fetchers:
+        # Question-only subs have no post body for the normal fetchers to find.
+        sub_fetchers = [_fetch_arctic_threads] if subreddit.lower() in _THREAD_SUBREDDITS else fetchers
+        for fetcher in sub_fetchers:
             if fetcher is _fetch_rss:
                 if rss_calls_made:
                     # RSS's rate limit behaves like a global-ish budget (see
