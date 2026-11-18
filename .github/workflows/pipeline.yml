@@ -9,9 +9,9 @@ on:
     # A few opportunities across the day — the script itself filters to
     # channels not yet at today's daily_cap, so exact times aren't
     # precision-critical, just need enough spread. UTC.
-    - cron: "0 8 * * *"
-    - cron: "0 13 * * *"
-    - cron: "0 18 * * *"
+    - cron: "17 8 * * *"
+    - cron: "17 13 * * *"
+    - cron: "17 18 * * *"
   workflow_dispatch:
     inputs:
       channel_key:
