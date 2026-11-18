@@ -47,7 +47,7 @@ export function Stat({ label, value, sub, tone }) {
   return (
     <div className="card p-4">
       <div className="label">{label}</div>
-      <div className={`mt-1.5 text-2xl font-semibold tracking-tight ${tone === "bad" ? "text-red-500" : tone === "ok" ? "text-emerald-500" : ""}`}>
+      <div className={`mt-1.5 text-[1.7rem] font-semibold tracking-tight ${tone === "bad" ? "text-red-500" : tone === "ok" ? "text-emerald-500" : "grad-text"}`}>
         {value}
       </div>
       {sub ? <div className="muted mt-0.5 text-xs">{sub}</div> : null}
@@ -69,10 +69,10 @@ export function Section({ title, action, children, className = "" }) {
 
 export function Bar({ value, max, tone = "accent" }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  const color = tone === "ok" ? "var(--ok)" : "var(--accent)";
+  const color = tone === "ok" ? "linear-gradient(90deg, #10b981, #34d399)" : "linear-gradient(90deg, var(--accent), var(--accent-2))";
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
-      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+    <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--line)", boxShadow: "inset 0 1px 2px rgba(0,0,0,.2)" }}>
+      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color, boxShadow: pct > 0 ? "0 0 10px -1px var(--accent)" : "none" }} />
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default function OverviewPage() {
               <div className="label mb-1.5">Next pipeline runs (IST)</div>
               <div className="flex flex-wrap gap-2">
                 {h.next_runs.slice(0, 3).map((r, i) => (
-                  <div key={r} className={`rounded-lg border px-2.5 py-1.5 hairline ${i === 0 ? "ring-1" : ""}`} style={i === 0 ? { "--tw-ring-color": "var(--accent)" } : undefined}>
+                  <div key={r} className={`rounded-xl border border-[var(--edge)] px-3 py-1.5 ${i === 0 ? "ring-1 glass" : ""}`} data-first={i === 0} style={i === 0 ? { "--tw-ring-color": "var(--accent)" } : undefined}>
                     <div className="font-semibold">{istTime(r)}</div>
                     <div className="muted text-[11px]">{until(r)}</div>
                   </div>
@@ -91,7 +91,7 @@ export default function OverviewPage() {
       <Section title="Today by channel" action={<Link to="/channels" className="muted text-xs hover:underline">All channels →</Link>}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {o.today.channels.map((c) => (
-            <Link key={c.key} to={`/channels/${c.key}`} className={`card block p-3 transition hover:shadow-md ${c.active ? "" : "opacity-60"}`}>
+            <Link key={c.key} to={`/channels/${c.key}`} className={`card lift block p-3 ${c.active ? "" : "opacity-60"}`}>
               <div className="mb-2.5 flex items-center gap-2.5">
                 <Avatar k={c.key} size={30} name={c.name} />
                 <div className="min-w-0 flex-1">

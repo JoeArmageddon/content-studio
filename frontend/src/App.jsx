@@ -19,16 +19,16 @@ const NAV = [
 export default function App() {
   return (
     <BrowserRouter>
-      <header className="sticky top-0 z-20 border-b backdrop-blur hairline" style={{ background: "color-mix(in srgb, var(--surface) 88%, transparent)" }}>
-        <div className="mx-auto flex max-w-7xl items-center gap-5 px-4 sm:px-6">
-          <div className="flex shrink-0 items-center gap-2 py-3">
-            <span className="grid h-7 w-7 place-items-center rounded-lg text-sm font-bold text-white" style={{ background: "var(--accent)" }}>S</span>
-            <span className="hidden text-[15px] font-semibold sm:inline">Content Studio</span>
+      <div className="orbs" aria-hidden="true"><i className="orb orb-1" /><i className="orb orb-2" /><i className="orb orb-3" /></div>
+      <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6">
+        <div className="glass glass-bar mx-auto flex max-w-7xl items-center gap-3 px-3 py-2 sm:px-4">
+          <div className="flex shrink-0 items-center gap-2.5 pr-1">
+            <span className="grid h-8 w-8 place-items-center rounded-xl text-sm font-bold text-white shadow-lg" style={{ background: "linear-gradient(135deg, var(--orb-1), var(--orb-2) 60%, var(--orb-3))" }}>S</span>
+            <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">Content Studio</span>
           </div>
-          <nav className="-mb-px flex flex-1 gap-1 overflow-x-auto">
+          <nav className="no-scrollbar flex flex-1 gap-1 overflow-x-auto">
             {NAV.map(([to, label, end]) => (
-              <NavLink key={to} to={to} end={end}
-                className={({ isActive }) => `whitespace-nowrap border-b-2 px-3 py-3.5 text-sm font-medium transition ${isActive ? "border-[var(--accent)] text-[var(--text)]" : "muted border-transparent hover:text-[var(--text)]"}`}>
+              <NavLink key={to} to={to} end={end} className={({ isActive }) => `navlink ${isActive ? "active" : ""}`}>
                 {label}
               </NavLink>
             ))}
