@@ -45,8 +45,15 @@ def run(state: PipelineState) -> PipelineState:
 
     insight_context = insights.summarize_for_prompt(channel_id)
 
+    is_thread = (story.get("content") or "").startswith("Question asked on r/")
+    thread_rule = (
+        "This video reads several different answers to ONE Reddit question. The title MUST be built "
+        "from the question itself (keep its meaning; you may shorten it or add a short curiosity tag "
+        "like 'The answers are wild'). Do NOT describe any single answer's anecdote in the title.\n"
+        if is_thread else ""
+    )
     prompt = (
-        f"Channel niche: {channel.get('niche', 'general')}\n"
+        f"{thread_rule}Channel niche: {channel.get('niche', 'general')}\n"
         f"Story title: {story.get('title', '')}\n"
         f"Hook: {state.get('hook', '')}\n"
         f"{insight_context}\n\n"

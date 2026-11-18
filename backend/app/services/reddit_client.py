@@ -184,6 +184,14 @@ _THREAD_SUBREDDITS = {"askreddit", "askmen", "nostupidquestions"}
 _ARCTIC_COMMENTS_URL = "https://arctic-shift.photon-reddit.com/api/comments/search"
 _ANSWER_MIN_WORDS, _ANSWER_MAX_WORDS, _ANSWERS_PER_THREAD, _THREADS_TO_SCAN = 12, 130, 4, 12
 _URL_RE = re.compile(r"https?://|www\.", re.I)
+# Question threads that make poor YouTube shorts (sexual, body-shaming, self-harm, politics) —
+# demonetisation / limited-ads risk and generally not what a general audience wants narrated.
+_RISKY_THREAD_RE = re.compile(
+    r"\b(sex|sexual|porn|nsfw|nude|naked|boob|boobs|breast|penis|dick|cock|pussy|vagina|"
+    r"orgasm|masturbat|kink|fetish|horny|rape|suicid|kill (?:yourself|myself)|self[- ]harm|"
+    r"fat|obese|ugly|trump|biden|gaza|israel|abortion|transgender|incel|gender|gay|lesbian|muslim|islam|christian|religio\w*|atheis\w*)\b",
+    re.I,
+)
 
 
 def _usable_answer(c: dict) -> bool:
@@ -218,6 +226,7 @@ def _fetch_arctic_threads(subreddit: str, limit: int) -> list[dict[str, Any]]:
         p for p in resp.json().get("data", [])
         if not p.get("over_18") and not p.get("stickied")
         and not _META_TITLE_RE.search(p.get("title", "")) and (p.get("title") or "").strip().endswith("?")
+        and not _RISKY_THREAD_RE.search(p.get("title", ""))
     ]
     # Archive scores for fresh posts are unsettled — comment count is the reliable engagement signal.
     posts.sort(key=lambda p: p.get("num_comments", 0), reverse=True)
