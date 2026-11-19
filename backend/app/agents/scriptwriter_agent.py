@@ -38,6 +38,7 @@ _SYSTEM_TEMPLATE = (
     "or outcomes. If something is unclear, leave it out.\n"
     "- Never write slurs. If the story contains one, say 'the N-word' or "
     "'a slur' instead; keep everything else as it happened.\n"
+    "- Never use em dashes or en dashes; use commas, periods or 'and' instead.\n"
     "- Short, punchy sentences — the way someone actually narrates a video "
     "out loud, not the way someone writes an article.\n"
     "- {tone_hint}\n"

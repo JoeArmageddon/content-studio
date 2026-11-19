@@ -31,5 +31,24 @@ def soften(text: str | None) -> str | None:
     return re.sub(r"\ba (?=idiot(?:ic)?\b)", "an ", text)
 
 
+# --- House style: no em dashes in any copywriting -------------------------------
+# Applied to the hook, script, title, description and tags. The LLM prompts also forbid them,
+# but models slip, so this is the guarantee. Number ranges ("5-10") become "5 to 10";
+# everything else becomes a comma, which reads naturally both aloud and on screen.
+_DASH_RANGE_RE = re.compile(r"(?<=\d)\s*[\u2013\u2014]\s*(?=\d)")
+_DASH_RE = re.compile(r"\s*(?:[\u2013\u2014\u2015]|\s--+\s)\s*")
+
+
+def strip_dashes(text: str | None) -> str | None:
+    if not text:
+        return text
+    text = _DASH_RANGE_RE.sub(" to ", text)
+    text = _DASH_RE.sub(", ", text)
+    return re.sub(r",\s*([,.!?;:])", r"\1", text)  # no ",," or ", ." left behind
+
+
+NO_DASH_RULE = "Never use em dashes or en dashes (no \u2014 or \u2013); use commas, periods or 'and' instead."
+
+
 def contains_slur(text: str | None) -> bool:
     return bool(text) and any(p.search(text) for p, _ in _RULES)

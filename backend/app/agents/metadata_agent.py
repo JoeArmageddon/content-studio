@@ -15,7 +15,7 @@ import json
 from app.agents import competitor_scan_agent
 from app.graph.state import PipelineState
 from app.services import insights, llm_clients
-from app.services.content_filter import soften
+from app.services.content_filter import NO_DASH_RULE, soften, strip_dashes
 
 _SYSTEM = (
     "You write YouTube metadata for a short-form narrated video retelling a "
@@ -26,6 +26,7 @@ _SYSTEM = (
     "details, numbers, dollar amounts, names, ages or outcomes. If the source "
     "is a question (e.g. an AskReddit thread), the title may pose that same "
     "question or tease the answers — never state made-up specifics.\n"
+    f"- {NO_DASH_RULE}\n"
     "- Description: 2-3 sentences, then a line of relevant hashtags.\n"
     "- If given examples of what's currently working for other creators or "
     "on this channel, let that inform your style and hashtag choices — but "
@@ -73,8 +74,9 @@ def run(state: PipelineState) -> PipelineState:
         state["error"] = f"Metadata generation failed: {exc}"
 
     meta = state["metadata"]
-    meta["title"] = soften(meta.get("title")) or "Untitled"
-    meta["description"] = soften(meta.get("description")) or ""
+    meta["title"] = strip_dashes(soften(meta.get("title"))) or "Untitled"
+    meta["description"] = strip_dashes(soften(meta.get("description"))) or ""
+    meta["tags"] = [strip_dashes(t) for t in (meta.get("tags") or []) if isinstance(t, str)]
 
     credit = state.get("background_credit")
     if credit:
