@@ -68,8 +68,14 @@ def run(state: PipelineState) -> PipelineState:
         state["story"] = chosen
     else:
         state["story"] = None
+        msg = (
+            "No story to use: sourcing returned no candidates (source API error or empty) "
+            if not candidates else
+            "No story to use: every sourced candidate was already used "
+        )
+        state["error"] = msg.strip() + "."
         state.setdefault("compliance_notes", []).append(
-            "No non-duplicate candidate found — sourced stories were empty or all already used."
+            "No non-duplicate candidate found, sourced stories were empty or all already used."
         )
 
     state.setdefault("stage_log", []).append("curate")

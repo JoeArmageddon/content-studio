@@ -142,6 +142,36 @@ _ARCTIC_WINDOW_DAYS = 7  # posts older than ~a day carry settled scores; a week 
 _ARCTIC_MIN_AGE_HOURS = 20  # skip the last ~day: scores there are still ingest-time values (~1)
 
 
+def _arctic_posts(subreddit: str) -> list[dict[str, Any]]:
+    """Posts from arctic-shift with retries. From CI it intermittently answers 422/5xx (its
+    query timeouts), which used to leave a channel with no stories at all. Retry with a
+    shorter window each time, since smaller queries are the ones that stop timing out."""
+    last: Exception | None = None
+    for attempt, days in enumerate((_ARCTIC_WINDOW_DAYS, 3, 2)):
+        now = time.time()
+        fmt = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t))  # noqa: E731
+        try:
+            resp = requests.get(
+                _ARCTIC_URL,
+                params={
+                    "subreddit": subreddit,
+                    "after": fmt(now - days * 86400),
+                    "before": fmt(now - _ARCTIC_MIN_AGE_HOURS * 3600),
+                    "limit": 100,
+                    "sort": "desc",
+                },
+                headers=_HEADERS,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return resp.json().get("data", [])
+        except requests.RequestException as exc:
+            last = exc
+            print(f"WARNING: arctic-shift attempt {attempt + 1} failed for r/{subreddit} ({days}d window): {exc}")
+            time.sleep(3 * (attempt + 1))
+    raise last  # type: ignore[misc]
+
+
 def _fetch_arctic_shift(subreddit: str, limit: int) -> list[dict[str, Any]]:
     """Reddit archive mirror (arctic-shift) — free, no key, and NOT blocked
     from datacenter IPs (Reddit's own endpoints 403/404 GitHub Actions
@@ -149,23 +179,8 @@ def _fetch_arctic_shift(subreddit: str, limit: int) -> list[dict[str, Any]]:
     unlike RSS's position proxy, so curation ranks by actual engagement.
     Trade-off: it's a third-party archive, so posts are 20h+ old by the time
     their score is trustworthy — fine for evergreen story content."""
-    now = time.time()
-    fmt = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t))  # noqa: E731
-    resp = requests.get(
-        _ARCTIC_URL,
-        params={
-            "subreddit": subreddit,
-            "after": fmt(now - _ARCTIC_WINDOW_DAYS * 86400),
-            "before": fmt(now - _ARCTIC_MIN_AGE_HOURS * 3600),
-            "limit": 100,
-            "sort": "desc",
-        },
-        headers=_HEADERS,
-        timeout=30,
-    )
-    resp.raise_for_status()
     stories = []
-    for raw in resp.json().get("data", []):
+    for raw in _arctic_posts(subreddit):
         body = (raw.get("selftext") or "").strip()
         if body in ("", "[removed]", "[deleted]") or _META_TITLE_RE.search(raw.get("title", "")):
             continue
@@ -207,23 +222,8 @@ def _usable_answer(c: dict) -> bool:
 
 
 def _fetch_arctic_threads(subreddit: str, limit: int) -> list[dict[str, Any]]:
-    now = time.time()
-    fmt = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t))  # noqa: E731
-    resp = requests.get(
-        _ARCTIC_URL,
-        params={
-            "subreddit": subreddit,
-            "after": fmt(now - _ARCTIC_WINDOW_DAYS * 86400),
-            "before": fmt(now - _ARCTIC_MIN_AGE_HOURS * 3600),
-            "limit": 100,
-            "sort": "desc",
-        },
-        headers=_HEADERS,
-        timeout=30,
-    )
-    resp.raise_for_status()
     posts = [
-        p for p in resp.json().get("data", [])
+        p for p in _arctic_posts(subreddit)
         if not p.get("over_18") and not p.get("stickied")
         and not _META_TITLE_RE.search(p.get("title", "")) and (p.get("title") or "").strip().endswith("?")
         and not _RISKY_THREAD_RE.search(p.get("title", ""))
@@ -233,17 +233,22 @@ def _fetch_arctic_threads(subreddit: str, limit: int) -> list[dict[str, Any]]:
 
     stories: list[dict[str, Any]] = []
     for post in posts[:_THREADS_TO_SCAN]:
-        try:
-            cr = requests.get(
-                _ARCTIC_COMMENTS_URL,
-                params={"link_id": post["id"], "limit": 100, "sort": "desc"},
-                headers=_HEADERS, timeout=30,
-            )
-            cr.raise_for_status()
-            comments = cr.json().get("data", [])
-        except Exception as exc:  # noqa: BLE001 — skip this thread, try the next
-            print(f"WARNING: comments fetch failed for {post['id']}: {exc}")
-            continue
+        comments = None
+        for attempt in range(3):  # arctic-shift 422s/times out intermittently; a retry usually works
+            try:
+                cr = requests.get(
+                    _ARCTIC_COMMENTS_URL,
+                    params={"link_id": post["id"], "limit": 100, "sort": "desc"},
+                    headers=_HEADERS, timeout=30,
+                )
+                cr.raise_for_status()
+                comments = cr.json().get("data", [])
+                break
+            except Exception as exc:  # noqa: BLE001
+                print(f"WARNING: comments fetch attempt {attempt + 1} failed for {post['id']}: {exc}")
+                time.sleep(2 * (attempt + 1))
+        if comments is None:
+            continue  # skip this thread, try the next
         answers = sorted((c for c in comments if _usable_answer(c)), key=lambda c: c.get("score", 0), reverse=True)
         if len(answers) < 3:
             continue  # not enough substance for a ~45s short
