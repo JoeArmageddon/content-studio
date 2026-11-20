@@ -51,3 +51,39 @@ def hashtag_ok(tag: str) -> bool:
     """Hashtags: ASCII only and not a known Hindi/Urdu marker."""
     body = tag.lstrip("#").replace("_", " ")
     return bool(body) and body.isascii() and not any(w in _STRONG for w in _WORD.findall(body.lower()))
+
+
+_LLM_SYSTEM = (
+    "You classify YouTube video titles by language. For each title answer true ONLY if the whole title "
+    "is natural English that an English-speaking viewer would fully understand. Answer false if the "
+    "title contains ANY Hindi, Hinglish (Hindi written in Latin letters, e.g. 'Mere Munne bhule na jana', "
+    "'Mai Dikh Gaye', 'Itna Toh Chalta Hai', 'Moye Moye'), Urdu, Tamil, Telugu or other non-English words, "
+    "even if the rest is English or the title ends with English hashtags. Proper names, brands and "
+    "common loanwords (e.g. bollywood, yoga) do not make a title non-English. Hashtags and emoji are "
+    "ignored; judge the words. Reply with ONLY a JSON array of booleans, one per title, in the same "
+    "order, with exactly as many items as titles."
+)
+
+
+def english_flags_llm(titles: list[str]) -> list[bool] | None:
+    """Ask the LLM (Groq first, via llm_clients) which titles are English, in ONE call for the whole
+    batch. Returns None if the call or its output can't be trusted, so callers fall back to the
+    word-list result instead of dropping everything."""
+    import json
+
+    if not titles:
+        return []
+    from app.services import llm_clients
+
+    numbered = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(titles))
+    try:
+        raw = llm_clients.generate(numbered, system=_LLM_SYSTEM, max_tokens=8 * len(titles) + 20, temperature=0)
+        match = re.search(r"\[.*\]", raw, re.S)
+        flags = json.loads(match.group(0)) if match else None
+    except Exception as exc:  # noqa: BLE001 — never block the scan on the classifier
+        print(f"WARNING: LLM language check failed, using word-list filter only: {exc}")
+        return None
+    if not isinstance(flags, list) or len(flags) != len(titles) or not all(isinstance(f, bool) for f in flags):
+        print("WARNING: LLM language check returned an unusable answer, using word-list filter only")
+        return None
+    return flags

@@ -189,4 +189,9 @@ def search_competitor_videos(niche_query: str, max_results: int = 10) -> list[di
                 "comment_count": int(stats.get("commentCount", 0) or 0),
             }
         )
+    # Second stage: one cheap LLM call over the survivors catches what the word lists miss
+    # (unlisted Hinglish, other Indian languages). Falls back to the word-list result on any failure.
+    flags = lang_filter.english_flags_llm([r["title"] or "" for r in results])
+    if flags is not None:
+        results = [r for r, ok in zip(results, flags) if ok]
     return results[:max_results]
