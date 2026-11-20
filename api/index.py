@@ -610,3 +610,83 @@ def get_channel_insights(channel_key: str, db: Session = Depends(get_db)):
         {"id": i.id, "source": i.source, "query": i.query, "findings": i.findings, "created_at": i.created_at}
         for i in recent
     ]
+
+
+@app.get("/api/learning")
+def learning(db: Session = Depends(get_db)):
+    """Status of the learning loop: Competitor-Scan + Feedback insights per channel, and whether
+    they are fresh enough (<= 7 days, same cut-off the pipeline prompts use) to be feeding the agents."""
+    now = _utcnow()
+    fresh_cut = now - timedelta(days=7)
+    channels = db.query(Channel).order_by(Channel.id).all()
+    rows = db.query(Insight).filter(Insight.created_at >= now - timedelta(days=14)).order_by(Insight.created_at.desc()).all()
+
+    perf = {
+        cid: (n, int(v or 0), best)
+        for cid, n, v, best in db.query(
+            Video.channel_id, func.count(Video.id), func.sum(Video.views), func.max(Video.views)
+        ).filter(Video.status == "published").group_by(Video.channel_id)
+    }
+    out = []
+    for c in channels:
+        mine = [r for r in rows if r.channel_id == c.id]
+        comp = [r for r in mine if r.source == "competitor_scan"]
+        own = [r for r in mine if r.source == "own_analytics"]
+        comp_fresh = [r for r in comp if _aware(r.created_at) >= fresh_cut]
+
+        def f(r):
+            return r.findings if isinstance(r.findings, dict) else {}
+
+        titles, tags = [], {}
+        for r in comp_fresh:
+            for t in f(r).get("top_titles", []):
+                if t not in titles:
+                    titles.append(t)
+            for h in f(r).get("top_hashtags", []):
+                tags[h.lower()] = tags.get(h.lower(), 0) + 1
+        own_latest = f(own[0]) if own else {}
+        n, views, best = perf.get(c.id, (0, 0, 0))
+        top_video = None
+        if best:
+            v = (
+                db.query(Video).filter(Video.channel_id == c.id, Video.status == "published", Video.views == best)
+                .order_by(Video.published_at.desc()).first()
+            )
+            if v:
+                top_video = {"title": v.title, "views": v.views, "id": v.youtube_video_id}
+        out.append({
+            "key": c.key, "name": c.name, "active": c.active,
+            "competitor": {
+                "last_at": comp[0].created_at if comp else None,
+                "fresh": bool(comp_fresh), "scans": len(comp_fresh),
+                "queries": sorted({r.query for r in comp_fresh if r.query}),
+                "top_titles": titles[:8],
+                "top_hashtags": [h for h, _ in sorted(tags.items(), key=lambda kv: -kv[1])[:10]],
+            },
+            "own": {
+                "last_at": own[0].created_at if own else None,
+                "fresh": bool(own) and _aware(own[0].created_at) >= fresh_cut,
+                "sample_size": own_latest.get("sample_size", 0),
+                "basis": own_latest.get("basis", "youtube_analytics" if own_latest.get("sample_size") else "none"),
+                "top_titles": own_latest.get("top_titles", []),
+            },
+            "performance": {"videos": n, "views": views, "avg_views": round(views / n, 1) if n else 0, "top_video": top_video},
+        })
+    last_any = rows[0].created_at if rows else None
+    return {
+        "last_refresh": last_any,
+        "stale": last_any is None or _aware(last_any) < now - timedelta(hours=36),
+        "channels": out,
+        "totals": {
+            "competitor_fresh": sum(1 for c in out if c["competitor"]["fresh"]),
+            "own_with_data": sum(1 for c in out if c["own"]["sample_size"]),
+            "channels": len(out),
+        },
+        "feeds": [
+            {"agent": "Curation", "uses": "Boosts stories whose wording overlaps with top titles (own + competitors)."},
+            {"agent": "Hook", "uses": "Sees the top titles and hashtags as style examples."},
+            {"agent": "Script", "uses": "Sees the same winning-titles context."},
+            {"agent": "Metadata", "uses": "Writes title and hashtags informed by what is working, without copying."},
+        ],
+        "schedule": "Daily 03:00 UTC (GitHub may start it a few hours late)",
+    }

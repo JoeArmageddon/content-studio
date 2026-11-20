@@ -30,6 +30,23 @@ def run(channel: dict[str, Any]) -> dict[str, Any]:
         return {"channel_key": key, "source": "own_analytics", "findings": {}}
 
     videos = analytics.get("videos", [])
+    basis = "youtube_analytics"
+    if not videos and channel_id:
+        # The Analytics API lags days behind and returns nothing for small/new channels. The stats
+        # sync (sync_youtube_stats.py) already keeps real per-video view counts in our DB, so use those.
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(Video)
+                .filter(Video.channel_id == channel_id, Video.youtube_video_id.isnot(None), Video.views > 0)
+                .order_by(Video.views.desc()).limit(25).all()
+            )
+            videos = [{"video": r.youtube_video_id, "views": r.views} for r in rows]
+            basis = "db_stats" if videos else "none"
+        finally:
+            db.close()
+    elif not videos:
+        basis = "none"
     top = sorted(videos, key=lambda v: v.get("views", 0), reverse=True)[:_TOP_N]
     top_video_ids = [v.get("video") for v in top if v.get("video")]
 
@@ -51,6 +68,7 @@ def run(channel: dict[str, Any]) -> dict[str, Any]:
         "top_titles": top_titles,
         "top_video_ids": top_video_ids,
         "sample_size": len(videos),
+        "basis": basis,
     }
 
     if channel_id:

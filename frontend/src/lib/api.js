@@ -18,6 +18,7 @@ export const getStories = (params) => get("/stories", params);
 export const getLibrary = () => get("/library");
 export const getActions = () => get("/actions");
 export const getSystem = () => get("/system");
+export const getLearning = () => get("/learning");
 export const getInsights = (key) => get(`/insights/${key}`);
 export const triggerRun = (key, dryRun = false) =>
   api.post(`/runs/trigger/${key}`, null, { params: { dry_run: dryRun } }).then((r) => r.data);

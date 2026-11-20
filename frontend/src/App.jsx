@@ -5,6 +5,7 @@ import ChannelDetailPage from "./pages/ChannelDetailPage";
 import VideosPage from "./pages/VideosPage";
 import RunsPage from "./pages/RunsPage";
 import LibraryPage from "./pages/LibraryPage";
+import LearningPage from "./pages/LearningPage";
 import SystemPage from "./pages/SystemPage";
 
 const NAV = [
@@ -13,6 +14,7 @@ const NAV = [
   ["/videos", "Videos"],
   ["/runs", "Runs"],
   ["/library", "Footage"],
+  ["/learning", "Learning"],
   ["/system", "System"],
 ];
 
@@ -43,6 +45,7 @@ export default function App() {
           <Route path="/videos" element={<VideosPage />} />
           <Route path="/runs" element={<RunsPage />} />
           <Route path="/library" element={<LibraryPage />} />
+          <Route path="/learning" element={<LearningPage />} />
           <Route path="/system" element={<SystemPage />} />
         </Routes>
       </main>
