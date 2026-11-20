@@ -23,7 +23,7 @@ channels:
     subreddits: ["survivinginfidelity", "relationship_advice", "cheating_stories"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["oddly satisfying soap cutting asmr", "kinetic sand cutting asmr"]
+    background_queries: ["oddly satisfying soap cutting asmr", "kinetic sand cutting asmr", "hydraulic press satisfying asmr", "paint mixing satisfying asmr"]
     active: true
     persona:
       handle: "@CaughtTales"
@@ -35,7 +35,7 @@ channels:
     subreddits: ["tifu"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["minecraft parkour gameplay", "subway surfers gameplay"]
+    background_queries: ["minecraft parkour gameplay", "subway surfers gameplay", "gta 5 ramp jumps gameplay", "trackmania gameplay no commentary"]
     active: true
     persona:
       handle: "@TIFUReads"
@@ -47,7 +47,7 @@ channels:
     subreddits: ["nosleep", "shortscarystories", "letsnotmeet"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["foggy forest atmospheric night", "abandoned house exploration"]
+    background_queries: ["foggy forest atmospheric night", "abandoned house exploration", "dark corridor ambience horror", "stormy night thunder ambience"]
     active: true
     persona:
       handle: "@MidnightTales"
@@ -59,7 +59,7 @@ channels:
     subreddits: ["entitledparents", "JUSTNOFAMILY", "familydrama"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["satisfying cooking asmr", "baking asmr close up"]
+    background_queries: ["satisfying cooking asmr", "baking asmr close up", "cozy kitchen asmr cooking", "pouring tea asmr relaxing"]
     active: true
     persona:
       handle: "@FamilyDramaVault"
@@ -71,7 +71,7 @@ channels:
     subreddits: ["confession", "confessions", "offmychest"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["rain on window relaxing", "night city drive pov"]
+    background_queries: ["rain on window relaxing", "night city drive pov", "night city lights bokeh", "candle flame ambience dark"]
     active: true
     persona:
       handle: "@AnonConfessions"
@@ -83,7 +83,7 @@ channels:
     subreddits: ["AmItheAsshole"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["minecraft parkour gameplay", "satisfying slime asmr"]
+    background_queries: ["minecraft parkour gameplay", "satisfying slime asmr", "geometry dash gameplay", "slime pressing asmr satisfying"]
     active: true
     persona:
       handle: "@AITAVerdicts"
@@ -92,10 +92,10 @@ channels:
   - key: reallife_survival
     name: "Real-Life Survival"
     niche: "Real-life survival / dangerous-situation stories"
-    subreddits: ["survival", "TrueOffMyChest", "CampingandHiking"]
+    subreddits: ["survival", "WildernessBackpacking", "CampingandHiking", "hiking", "camping"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["hiking forest trail nature", "mountain landscape drone"]
+    background_queries: ["hiking forest trail nature", "mountain landscape drone", "campfire crackling forest night", "waterfall river nature 4k"]
     active: true
     persona:
       handle: "@SurvivalTales"
@@ -107,7 +107,7 @@ channels:
     subreddits: ["antiwork", "MaliciousCompliance", "pettyrevenge"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["city timelapse aesthetic", "cozy office desk aesthetic"]
+    background_queries: ["city timelapse aesthetic", "cozy office desk aesthetic", "typing keyboard asmr desk setup", "night traffic timelapse city"]
     active: true
     persona:
       handle: "@WorkplaceTales"
@@ -119,7 +119,7 @@ channels:
     subreddits: ["AskReddit", "AskMen", "NoStupidQuestions"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["subway surfers gameplay", "temple run gameplay"]
+    background_queries: ["subway surfers gameplay", "temple run gameplay", "crossy road gameplay", "fall guys gameplay"]
     active: true
     persona:
       handle: "@AskRedditVault"
@@ -128,10 +128,10 @@ channels:
   - key: rich_v_poor
     name: "Rich vs Poor"
     niche: "Wealth-gap / class-contrast stories"
-    subreddits: ["povertyfinance", "fatFIRE", "childfree"]
+    subreddits: ["povertyfinance", "fatFIRE", "personalfinance", "antiwork", "entitledparents"]
     voices: ["af_jessica"]
     daily_cap: 3
-    background_queries: ["luxury lifestyle aesthetic", "city skyline drone timelapse"]
+    background_queries: ["luxury lifestyle aesthetic", "city skyline drone timelapse", "yacht ocean drone luxury", "sports car night drive pov"]
     active: true
     persona:
       handle: "@RichVsPoorTales"

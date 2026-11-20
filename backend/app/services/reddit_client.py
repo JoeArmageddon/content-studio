@@ -139,6 +139,9 @@ def _fetch_public_json(subreddit: str, limit: int) -> list[dict[str, Any]]:
 
 _ARCTIC_URL = "https://arctic-shift.photon-reddit.com/api/posts/search"
 _ARCTIC_WINDOW_DAYS = 7  # posts older than ~a day carry settled scores; a week keeps small subs viable
+# Low-volume, story-poor subreddits need a longer lookback to have enough real stories to choose from.
+_LONG_WINDOW_SUBS = {"survival", "wildernessbackpacking", "campingandhiking", "fatfire", "entitledparents"}
+_LONG_WINDOW_DAYS = 30
 _ARCTIC_MIN_AGE_HOURS = 20  # skip the last ~day: scores there are still ingest-time values (~1)
 
 
@@ -147,7 +150,8 @@ def _arctic_posts(subreddit: str) -> list[dict[str, Any]]:
     query timeouts), which used to leave a channel with no stories at all. Retry with a
     shorter window each time, since smaller queries are the ones that stop timing out."""
     last: Exception | None = None
-    for attempt, days in enumerate((_ARCTIC_WINDOW_DAYS, 3, 2)):
+    first = _LONG_WINDOW_DAYS if subreddit.lower() in _LONG_WINDOW_SUBS else _ARCTIC_WINDOW_DAYS
+    for attempt, days in enumerate((first, 3, 2)):
         now = time.time()
         fmt = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t))  # noqa: E731
         try:
