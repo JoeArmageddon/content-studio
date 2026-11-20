@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getOverview } from "../lib/api";
 import { useLoad } from "../lib/hooks";
@@ -23,14 +24,31 @@ function SlotNote({ slot }) {
   );
 }
 
+const DISMISS_KEY = "cs-dismissed-alerts";
+// An alert is identified by its content, so it comes back on its own if the problem changes.
+const alertId = (a) => `${a.level}|${a.channel_key || ""}|${a.title}|${a.detail}`;
+function loadDismissed() {
+  try { return new Set(JSON.parse(localStorage.getItem(DISMISS_KEY) || "[]")); } catch { return new Set(); }
+}
+function saveDismissed(set) {
+  try { localStorage.setItem(DISMISS_KEY, JSON.stringify([...set].slice(-200))); } catch { /* storage unavailable */ }
+}
+
 const ALERT_TONE = { error: "bad", warn: "warn", info: "info" };
 
 export default function OverviewPage() {
   const { data: o, error, loading, updated, reload } = useLoad(getOverview, [], 30000);
+  const [dismissed, setDismissed] = useState(loadDismissed);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const dismiss = (ids) => setDismissed((prev) => { const n = new Set(prev); ids.forEach((i) => n.add(i)); saveDismissed(n); return n; });
+  const restore = () => { saveDismissed(new Set()); setDismissed(new Set()); setShowDismissed(false); };
   if (error && !o) return <ErrorBox error={error} onRetry={reload} />;
   if (!o) return <Loading what="overview" />;
 
   const t = o.totals, h = o.health;
+  const open = o.alerts.filter((a) => !dismissed.has(alertId(a)));
+  const hidden = o.alerts.length - open.length;
+  const shown = showDismissed ? o.alerts : open;
   const rate = h.success_rate_7d;
 
   return (
@@ -39,21 +57,41 @@ export default function OverviewPage() {
         <button className="btn" onClick={reload} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
       </PageHead>
 
-      {o.alerts.length ? (
-        <Section title={`Needs attention (${o.alerts.length})`}>
+      {o.alerts.length && (open.length || showDismissed) ? (
+        <Section
+          title={`Needs attention (${open.length})`}
+          action={
+            <span className="flex items-center gap-3 text-xs">
+              {open.length > 1 ? <button className="muted hover:underline" onClick={() => dismiss(open.map(alertId))}>Dismiss all</button> : null}
+              {hidden ? <button className="muted hover:underline" onClick={() => setShowDismissed((v) => !v)}>{showDismissed ? "Hide dismissed" : `Show dismissed (${hidden})`}</button> : null}
+            </span>
+          }
+        >
           <div className="card divide-y hairline">
-            {o.alerts.map((a, i) => (
-              <div key={i} className="flex items-start gap-3 p-3.5 text-sm">
-                <Badge tone={ALERT_TONE[a.level]}>{a.level === "error" ? "Problem" : a.level === "warn" ? "Warning" : "Info"}</Badge>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium">{a.title}</div>
-                  <div className="muted mt-0.5 break-words text-xs">{a.detail}</div>
+            {shown.map((a) => {
+              const gone = dismissed.has(alertId(a));
+              return (
+                <div key={alertId(a)} className={`flex items-start gap-3 p-3.5 text-sm ${gone ? "opacity-50" : ""}`}>
+                  <Badge tone={ALERT_TONE[a.level]}>{a.level === "error" ? "Problem" : a.level === "warn" ? "Warning" : "Info"}</Badge>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">{a.title}</div>
+                    <div className="muted mt-0.5 break-words text-xs">{a.detail}</div>
+                  </div>
+                  {a.channel_key ? <Link to={`/channels/${a.channel_key}`} className="btn shrink-0">Open</Link> : null}
+                  {gone ? null : <button className="btn shrink-0" onClick={() => dismiss([alertId(a)])} aria-label={`Dismiss: ${a.title}`}>Dismiss</button>}
                 </div>
-                {a.channel_key ? <Link to={`/channels/${a.channel_key}`} className="btn shrink-0">Open</Link> : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Section>
+      ) : o.alerts.length ? (
+        <div className="muted flex items-center justify-between rounded-xl px-1 text-xs">
+          <span>{hidden} alert{hidden === 1 ? "" : "s"} dismissed</span>
+          <span className="flex gap-3">
+            <button className="hover:underline" onClick={() => setShowDismissed(true)}>Show</button>
+            <button className="hover:underline" onClick={restore}>Restore all</button>
+          </span>
+        </div>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">

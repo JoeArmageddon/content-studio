@@ -102,6 +102,15 @@ jobs:
             python scripts/run_scheduled_channels.py
           fi
 
+      - name: Refresh YouTube stats
+        # The stats cron is best-effort on GitHub (ticks get skipped, leaving gaps of 6-9 h), so also
+        # refresh view/like counts after every pipeline pass. Never fails the run.
+        if: always() && github.event.inputs.dry_run != 'true'
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/sync_youtube_stats.py
+
       - name: Upload built videos (dry runs / debugging)
         if: always() && github.event.inputs.dry_run == 'true'
         uses: actions/upload-artifact@v4

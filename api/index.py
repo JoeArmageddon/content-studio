@@ -609,8 +609,9 @@ def overview(db: Session = Depends(get_db)):
     stamps = [_aware(c["stats_updated_at"]) for c in cdicts if c["stats_updated_at"]]
     if not stamps:
         alerts.append({"level": "info", "title": "YouTube stats haven't synced yet", "detail": "Runs every 3 hours from GitHub Actions (or use Sync now on the System page)."})
-    elif now - max(stamps) > timedelta(hours=8):
-        alerts.append({"level": "warn", "title": "YouTube stats are stale", "detail": f"Last sync {max(stamps).isoformat()}."})
+    elif now - max(stamps) > timedelta(hours=12):
+        hrs = int((now - max(stamps)).total_seconds() // 3600)
+        alerts.append({"level": "warn", "title": "YouTube stats are stale", "detail": f"Last sync {hrs}h ago. GitHub sometimes skips scheduled syncs; every pipeline run refreshes them too, or trigger the 'Sync YouTube stats' workflow."})
     if not _gh_ready():
         alerts.append({"level": "warn", "title": "GitHub integration not configured", "detail": "Set GITHUB_TOKEN and GITHUB_REPO on Vercel to enable Trigger / Sync / workflow history."})
 
