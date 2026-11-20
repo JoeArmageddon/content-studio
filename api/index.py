@@ -177,7 +177,7 @@ app.add_middleware(
 # the first day was setup (unauthorized channels, early bugs) and would otherwise
 # drag the success rate down forever. Override with HEALTH_SINCE (ISO timestamp).
 HEALTH_SINCE = datetime.fromisoformat(os.environ.get("HEALTH_SINCE", "2026-11-18T08:30:00+00:00"))
-CRON_HOURS_UTC = [8, 13, 18]  # keep in sync with .github/workflows/pipeline.yml
+CRON_HOURS_UTC = [8 + 17 / 60, 13 + 17 / 60, 18 + 17 / 60]  # :17 past 08/13/18 UTC; keep in sync with .github/workflows/pipeline.yml
 STATS_CRON = "every 3 hours (:15)"
 
 

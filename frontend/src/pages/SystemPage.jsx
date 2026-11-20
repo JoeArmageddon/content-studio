@@ -42,7 +42,7 @@ export default function SystemPage() {
             {s.schedule.next_runs.map((r) => (
               <div key={r} className="flex justify-between p-3"><span>{istDateTime(r)} IST</span><span className="muted">{until(r)}</span></div>
             ))}
-            <div className="muted p-3 text-xs">Cron fires at {s.schedule.pipeline_hours_utc.map((h) => `${String(h).padStart(2, "0")}:00`).join(", ")} UTC. GitHub can delay a run by 5–20 min; each channel stops at its daily cap.</div>
+            <div className="muted p-3 text-xs">Cron fires at {s.schedule.pipeline_hours_utc.map((h) => `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`).join(", ")} UTC. GitHub often starts scheduled runs hours late (3 to 6 h seen); each channel stops at its daily cap.</div>
           </div>
         </Section>
 
