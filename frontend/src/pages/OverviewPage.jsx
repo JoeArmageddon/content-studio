@@ -53,12 +53,11 @@ export default function OverviewPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-5">
-        <Section title="Activity · last 14 days" className="lg:col-span-3"
-          action={<span className="muted flex items-center gap-3 text-xs"><i className="inline-block h-2 w-2 rounded-sm" style={{ background: "var(--ok)" }} /> published <i className="inline-block h-2 w-2 rounded-sm" style={{ background: "var(--bad)" }} /> failed runs</span>}>
-          <div className="card p-4"><ActivityChart data={o.activity} /></div>
+        <Section title="Activity" className="min-w-0 lg:col-span-3">
+          <div className="card p-4"><ActivityChart /></div>
         </Section>
 
-        <Section title="Schedule" className="lg:col-span-2">
+        <Section title="Schedule" className="min-w-0 lg:col-span-2">
           <div className="card space-y-3 p-4 text-sm">
             <div>
               <div className="label mb-1.5">Next pipeline runs (IST)</div>

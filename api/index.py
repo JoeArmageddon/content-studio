@@ -454,6 +454,41 @@ def get_library(db: Session = Depends(get_db)):
     return out
 
 
+@app.get("/api/activity")
+def activity(days: int = 14, db: Session = Depends(get_db)):
+    """Per-day publishing activity (IST days) with a per-channel breakdown, for the interactive chart."""
+    days = max(7, min(int(days), 60))
+    start = _day_start() - timedelta(days=days - 1)
+    start_local = start.astimezone(DAY_TZ)
+    chans = db.query(Channel).order_by(Channel.id).all()
+    by_id = {c.id: c for c in chans}
+    out = {
+        (start_local + timedelta(days=i)).date().isoformat(): {"published": 0, "failed": 0, "views": 0, "by_channel": {}, "failed_by_channel": {}}
+        for i in range(days)
+    }
+    for pub, ch_id, views in db.query(Video.published_at, Video.channel_id, Video.views).filter(Video.status == "published", Video.published_at >= start):
+        k = _aware(pub).astimezone(DAY_TZ).date().isoformat()
+        if k in out and ch_id in by_id:
+            d = out[k]
+            key = by_id[ch_id].key
+            d["published"] += 1
+            d["views"] += views or 0
+            d["by_channel"][key] = d["by_channel"].get(key, 0) + 1
+    # Failures from before go-live were setup noise; the success-rate stat ignores them too.
+    for st, ch_id in db.query(Run.started_at, Run.channel_id).filter(Run.status == "failed", Run.started_at >= max(start, HEALTH_SINCE)):
+        k = _aware(st).astimezone(DAY_TZ).date().isoformat()
+        if k in out and ch_id in by_id:
+            d = out[k]
+            key = by_id[ch_id].key
+            d["failed"] += 1
+            d["failed_by_channel"][key] = d["failed_by_channel"].get(key, 0) + 1
+    return {
+        "days": days,
+        "channels": [{"key": c.key, "name": c.name} for c in chans],
+        "series": [{"date": d, **v} for d, v in out.items()],
+    }
+
+
 @app.get("/api/overview")
 def overview(db: Session = Depends(get_db)):
     now = _utcnow()

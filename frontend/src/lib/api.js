@@ -9,6 +9,7 @@ export const api = axios.create({ baseURL });
 const get = (url, params) => api.get(url, { params }).then((r) => r.data);
 
 export const getOverview = () => get("/overview");
+export const getActivity = (days = 14) => get("/activity", { days });
 export const getChannels = () => get("/channels");
 export const getChannel = (key) => get(`/channels/${key}`);
 export const patchChannel = (key, body) => api.patch(`/channels/${key}`, body).then((r) => r.data);
