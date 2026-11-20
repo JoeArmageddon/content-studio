@@ -17,7 +17,7 @@ _STRONG = {
     "bhabhi", "jaadu", "shaadi", "gaon", "ghar", "bhai", "didi", "yaar", "zindagi", "desi", "bollywood",
     "dikh", "dikha", "gaye", "gayi", "bhule", "munne", "mujhe", "tumhare", "bahut", "bohot", "sabse", "kaise",
     "kyun", "kyu", "lekin", "magar", "sachchi", "pehli", "bachpan", "dukh", "maa", "papa", "mummy", "beta", "beti",
-    "shivamsingh", "varunbundela",
+    "shivamsingh", "varunbundela", "itna", "chalta", "pyaaz", "moye", "paavi",
 }
 _WEAK = {
     "ki", "ke", "ka", "ko", "mein", "se", "wali", "wala", "hai", "hain", "aur", "yeh", "kya", "ek", "tha", "thi",

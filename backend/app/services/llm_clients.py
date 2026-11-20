@@ -7,9 +7,27 @@ mirrors StoriqueOS's provider choice, which already proved workable on the
 free tier. Raises a clear error (not a silent empty string) when neither is
 configured, so callers can decide how to degrade gracefully.
 """
+import re
+import time
 from typing import Optional
 
 from app.core.config import settings
+
+# Groq's free tier caps tokens per MINUTE (8000 for gpt-oss-120b); a burst (several agents back to
+# back, or a manual test during a scheduled run) gets a 429 that says how long to wait. Waiting
+# it out beats failing the whole run, and there is no other provider configured to fall back to.
+_GROQ_RATE_LIMIT_RETRIES = 3
+_MAX_RATE_LIMIT_WAIT = 30.0
+
+
+def _rate_limit_wait(exc: Exception) -> float | None:
+    """Seconds to wait if exc is a rate-limit error, else None."""
+    text = str(exc)
+    if "429" not in text and "rate limit" not in text.lower():
+        return None
+    m = re.search(r"try again in (?:(\d+)m)?\s*([\d.]+)s", text)
+    wait = (int(m.group(1) or 0) * 60 + float(m.group(2)) + 1.0) if m else 10.0
+    return min(wait, _MAX_RATE_LIMIT_WAIT)
 
 _GEMINI_MODEL = "gemini-1.5-flash"  # NOT re-verified — likely retired like Groq's Llama was; confirm before relying on this fallback
 
@@ -76,10 +94,17 @@ def generate(
     errors = []
 
     if settings.groq_api_key:
-        try:
-            return _generate_groq(prompt, system, max_tokens, temperature)
-        except Exception as exc:  # noqa: BLE001 — fall through to Gemini
-            errors.append(f"groq: {exc}")
+        for attempt in range(_GROQ_RATE_LIMIT_RETRIES + 1):
+            try:
+                return _generate_groq(prompt, system, max_tokens, temperature)
+            except Exception as exc:  # noqa: BLE001 — retry rate limits, else fall through to Gemini
+                wait = _rate_limit_wait(exc)
+                if wait is not None and attempt < _GROQ_RATE_LIMIT_RETRIES:
+                    print(f"WARNING: Groq rate limit, waiting {wait:.0f}s then retrying ({attempt + 1}/{_GROQ_RATE_LIMIT_RETRIES})")
+                    time.sleep(wait)
+                    continue
+                errors.append(f"groq: {exc}")
+                break
 
     if settings.gemini_api_key:
         try:

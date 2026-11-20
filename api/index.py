@@ -20,6 +20,8 @@ immediately. The dashboard already polls for the real result once that
 run finishes.
 """
 import os
+import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -182,6 +184,42 @@ STATS_CRON = "every 3 hours (:15)"
 # "Today" is the owner's day (IST), not the UTC day: a UTC day starts at 05:30 am IST, which split
 # the two morning passes into different days and made the dashboard under-count "published today".
 # Must match backend/app/agents/publisher_agent.py (the daily cap uses the same boundary).
+# --- English-only filter (mirror of backend/app/services/lang_filter.py; this API is self-contained) ---
+# Older insight rows were stored before the filter existed, so apply it again when reading them.
+_STRONG = {
+    "hindi", "hinglish", "urdu", "kahani", "kahaniya", "bhoot", "bhootiya", "chudail", "pyaar", "dosti",
+    "bhabhi", "jaadu", "shaadi", "gaon", "ghar", "bhai", "didi", "yaar", "zindagi", "desi", "bollywood",
+    "dikh", "dikha", "gaye", "gayi", "bhule", "munne", "mujhe", "tumhare", "bahut", "bohot", "sabse", "kaise",
+    "kyun", "kyu", "lekin", "magar", "sachchi", "pehli", "bachpan", "dukh", "maa", "papa", "mummy", "beta", "beti",
+    "shivamsingh", "varunbundela", "itna", "chalta", "pyaaz", "moye", "paavi",
+}
+_WEAK = {
+    "ki", "ke", "ka", "ko", "mein", "se", "wali", "wala", "hai", "hain", "aur", "yeh", "kya", "ek", "tha", "thi",
+    "nahi", "raat", "ne", "mai", "mere", "mera", "meri", "jana", "na", "ye", "wo", "woh", "gaya", "hua", "hui",
+    "raha", "rahi", "apna", "apni", "tum", "hum", "kar", "karo", "sach", "baad", "log",
+}
+_WORD = re.compile(r"[a-z]+")
+
+
+def _looks_english(text) -> bool:
+    if not text:
+        return False
+    letters = [ch for ch in text if unicodedata.category(ch).startswith("L")]
+    if not letters:
+        return False
+    if sum(1 for ch in letters if "LATIN" not in unicodedata.name(ch, "")) / len(letters) > 0.2:
+        return False
+    words = _WORD.findall(text.lower())
+    if any(w in _STRONG for w in words):
+        return False
+    return sum(1 for w in words if w in _WEAK) < 2
+
+
+def _hashtag_ok(tag: str) -> bool:
+    body = tag.lstrip("#").replace("_", " ")
+    return bool(body) and body.isascii() and not any(w in _STRONG for w in _WORD.findall(body.lower()))
+
+
 DAY_TZ = timezone(timedelta(hours=5, minutes=30))
 
 
@@ -675,9 +713,11 @@ def learning(db: Session = Depends(get_db)):
         titles, tags = [], {}
         for r in comp_fresh:
             for t in f(r).get("top_titles", []):
-                if t not in titles:
+                if t not in titles and _looks_english(t):
                     titles.append(t)
             for h in f(r).get("top_hashtags", []):
+                if not _hashtag_ok(h):
+                    continue
                 tags[h.lower()] = tags.get(h.lower(), 0) + 1
         own_latest = f(own[0]) if own else {}
         n, views, best = perf.get(c.id, (0, 0, 0))
