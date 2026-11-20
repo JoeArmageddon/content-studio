@@ -12,6 +12,7 @@ from typing import Optional
 
 from app.core.db import SessionLocal
 from app.core.models import Insight
+from app.services import lang_filter
 
 _DEFAULT_MAX_AGE_DAYS = 7
 _DEFAULT_LIMIT = 5
@@ -43,7 +44,8 @@ def top_titles(channel_id: Optional[int], max_age_days: int = _DEFAULT_MAX_AGE_D
     titles: list[str] = []
     for insight in get_recent(channel_id, max_age_days=max_age_days):
         titles.extend((insight.findings or {}).get("top_titles", []))
-    return [t for t in titles if t]
+    # English-only, also for rows stored before the scan was made English-only.
+    return [t for t in titles if t and lang_filter.looks_english(t)]
 
 
 def summarize_for_prompt(channel_id: Optional[int], max_age_days: int = _DEFAULT_MAX_AGE_DAYS) -> str:
@@ -54,10 +56,12 @@ def summarize_for_prompt(channel_id: Optional[int], max_age_days: int = _DEFAULT
     for insight in get_recent(channel_id, max_age_days=max_age_days):
         findings = insight.findings or {}
         if insight.source == "competitor_scan":
-            if findings.get("top_titles"):
-                lines.append(f"Titles doing well for other creators in this niche right now: {findings['top_titles']}")
-            if findings.get("top_hashtags"):
-                lines.append(f"Hashtags commonly used in this niche right now: {findings['top_hashtags']}")
+            titles = [t for t in findings.get("top_titles", []) if lang_filter.looks_english(t)]
+            tags = [h for h in findings.get("top_hashtags", []) if lang_filter.hashtag_ok(h)]
+            if titles:
+                lines.append(f"Titles doing well for other creators in this niche right now: {titles}")
+            if tags:
+                lines.append(f"Hashtags commonly used in this niche right now: {tags}")
         elif insight.source == "own_analytics":
             if findings.get("top_titles"):
                 lines.append(f"Your own best-performing recent videos on this channel: {findings['top_titles']}")

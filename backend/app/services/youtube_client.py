@@ -32,6 +32,7 @@ import requests
 from app.core.db import SessionLocal
 from app.core.models import YouTubeToken
 from app.core.config import settings
+from app.services import lang_filter
 
 _SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 _VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
@@ -140,7 +141,9 @@ def search_competitor_videos(niche_query: str, max_results: int = 10) -> list[di
             "part": "snippet",
             "type": "video",
             "order": "viewCount",
-            "maxResults": max_results,
+            "relevanceLanguage": "en",  # English-only: our hook/script/metadata prompts are English
+            "regionCode": "US",
+            "maxResults": max(max_results, 25),  # over-fetch: non-English results are dropped below (same quota cost)
         },
         timeout=15,
     )
@@ -168,6 +171,12 @@ def search_competitor_videos(niche_query: str, max_results: int = 10) -> list[di
     for item in stats_resp.json().get("items", []):
         snippet = item.get("snippet", {})
         stats = item.get("statistics", {})
+        if not (
+            lang_filter.declared_language_ok(snippet.get("defaultAudioLanguage"))
+            and lang_filter.declared_language_ok(snippet.get("defaultLanguage"))
+            and lang_filter.looks_english(snippet.get("title"))
+        ):
+            continue  # not English: would pollute the English prompts
         results.append(
             {
                 "video_id": item["id"],
@@ -180,4 +189,4 @@ def search_competitor_videos(niche_query: str, max_results: int = 10) -> list[di
                 "comment_count": int(stats.get("commentCount", 0) or 0),
             }
         )
-    return results
+    return results[:max_results]

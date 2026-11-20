@@ -18,7 +18,7 @@ from typing import Any
 
 from app.core.db import SessionLocal
 from app.core.models import Insight
-from app.services import youtube_client
+from app.services import lang_filter, youtube_client
 
 _TOP_N_TITLES = 5
 _TOP_N_HASHTAGS = 10
@@ -37,7 +37,7 @@ def run(channel: dict[str, Any]) -> dict[str, Any]:
     top_by_views = sorted(videos, key=lambda v: v["view_count"], reverse=True)[:_TOP_N_TITLES]
     hashtags: list[str] = []
     for v in videos:
-        hashtags.extend(re.findall(r"#\w+", v.get("description", "")))
+        hashtags.extend(t for t in re.findall(r"#\w+", v.get("description", "")) if lang_filter.hashtag_ok(t))
     top_hashtags = [tag for tag, _ in Counter(hashtags).most_common(_TOP_N_HASHTAGS)]
 
     findings = {
