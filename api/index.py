@@ -251,6 +251,44 @@ def _next_runs(n: int = 4) -> list[str]:
     return out[:n]
 
 
+def _slot_status(db: Session) -> Optional[dict]:
+    """Most recent scheduled pipeline slot and whether a run really started for it. GitHub often
+    starts scheduled runs hours late, so 'the slot passed' and 'the run started' are different events."""
+    now = _utcnow()
+    slots = []
+    for d in (_utc_midnight() - timedelta(days=1), _utc_midnight()):
+        slots += [d + timedelta(hours=h) for h in CRON_HOURS_UTC]
+    past = [t for t in slots if t <= now]
+    if not past:
+        return None
+    slot = past[-1]
+    nxt = next((t for t in slots if t > now), None)
+    # A scheduled pass runs every due channel, while manual runs touch one: only count a pass as
+    # started once 3+ different channels begin within 90 minutes (so a lone manual run isn't mistaken for it).
+    rows = [
+        (_aware(t), cid)
+        for t, cid in db.query(Run.started_at, Run.channel_id)
+        .filter(Run.started_at >= slot, Run.started_at < (nxt or now + timedelta(days=1)))
+        .order_by(Run.started_at)
+    ]
+    first = next(
+        (t for t, _ in rows if len({c for t2, c in rows if t <= t2 <= t + timedelta(minutes=90)}) >= 3),
+        None,
+    )
+    out = {"slot": slot.isoformat(), "started_at": first, "delay_seconds": None, "state": "waiting"}
+    if first:
+        delay = int((_aware(first) - slot).total_seconds())
+        out["delay_seconds"] = max(0, delay)
+        out["state"] = "late" if delay > 20 * 60 else "on_time"
+    else:
+        out["delay_seconds"] = max(0, int((now - slot).total_seconds()))
+        if out["delay_seconds"] < 15 * 60:
+            out["state"] = "due"  # inside GitHub's usual few-minute start jitter
+        elif db.query(Run.id).filter(Run.status == "running").first():
+            out["state"] = "busy"  # an earlier late run is still going
+    return out
+
+
 def _gh_headers():
     return {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
 
@@ -606,6 +644,7 @@ def overview(db: Session = Depends(get_db)):
             "since": max(HEALTH_SINCE, now - timedelta(days=7)),
             "last_run": _run_dict(last_run, chans.get(last_run.channel_id)) if last_run else None,
             "next_runs": _next_runs(),
+            "slot": _slot_status(db),
             "stats_updated_at": max(stamps) if stamps else None,
         },
         "alerts": alerts,

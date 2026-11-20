@@ -5,6 +5,24 @@ import { ago, dur, istDateTime, istTime, num, until } from "../lib/format";
 import { Avatar, Badge, Bar, ChannelLink, ErrorBox, Loading, PageHead, Section, Stat, StatusBadge } from "../components/ui";
 import { ActivityChart } from "../components/charts";
 
+function SlotNote({ slot }) {
+  const t = istTime(slot.slot);
+  const late = dur(slot.delay_seconds);
+  const map = {
+    on_time: { tone: "ok", text: `${t} run started on time` },
+    late: { tone: "warn", text: `${t} run started ${late} late (GitHub delay)` },
+    due: { tone: "info", text: `${t} run is due, starting any moment` },
+    waiting: { tone: "warn", text: `${t} slot passed ${late} ago, waiting for GitHub to start it` },
+    busy: { tone: "info", text: `${t} slot passed, an earlier delayed run is still going` },
+  }[slot.state];
+  return (
+    <div className="hairline flex items-start gap-2 border-t pt-3">
+      <Badge tone={map.tone}>{slot.state === "late" ? "Late" : slot.state === "waiting" ? "Waiting" : slot.state === "on_time" ? "On time" : "Due"}</Badge>
+      <span className="text-xs">{map.text}</span>
+    </div>
+  );
+}
+
 const ALERT_TONE = { error: "bad", warn: "warn", info: "info" };
 
 export default function OverviewPage() {
@@ -70,6 +88,7 @@ export default function OverviewPage() {
                 ))}
               </div>
             </div>
+            {h.slot ? <SlotNote slot={h.slot} /> : null}
             <div className="hairline border-t pt-3">
               <div className="label mb-1">Last run</div>
               {h.last_run ? (
