@@ -179,7 +179,19 @@ CRON_HOURS_UTC = [8, 13, 18]  # keep in sync with .github/workflows/pipeline.yml
 STATS_CRON = "every 3 hours (:15)"
 
 
+# "Today" is the owner's day (IST), not the UTC day: a UTC day starts at 05:30 am IST, which split
+# the two morning passes into different days and made the dashboard under-count "published today".
+# Must match backend/app/agents/publisher_agent.py (the daily cap uses the same boundary).
+DAY_TZ = timezone(timedelta(hours=5, minutes=30))
+
+
 def _day_start(now: Optional[datetime] = None) -> datetime:
+    """Start of the current IST day, as an aware UTC instant."""
+    local = (now or _utcnow()).astimezone(DAY_TZ)
+    return local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+
+
+def _utc_midnight(now: Optional[datetime] = None) -> datetime:
     now = now or _utcnow()
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -191,7 +203,7 @@ def _aware(dt):
 
 
 def _next_runs(n: int = 4) -> list[str]:
-    now, out, day = _utcnow(), [], _day_start()
+    now, out, day = _utcnow(), [], _utc_midnight()
     while len(out) < n:
         for h in CRON_HOURS_UTC:
             t = day + timedelta(hours=h)
@@ -451,13 +463,14 @@ def overview(db: Session = Depends(get_db)):
 
     # 14-day activity chart
     start = _day_start() - timedelta(days=13)
-    days = {(start + timedelta(days=i)).date().isoformat(): {"published": 0, "failed": 0} for i in range(14)}
+    start_local = start.astimezone(DAY_TZ)
+    days = {(start_local + timedelta(days=i)).date().isoformat(): {"published": 0, "failed": 0} for i in range(14)}
     for pub in db.query(Video.published_at).filter(Video.status == "published", Video.published_at >= start):
-        k = _aware(pub[0]).date().isoformat()
+        k = _aware(pub[0]).astimezone(DAY_TZ).date().isoformat()
         if k in days:
             days[k]["published"] += 1
     for st in db.query(Run.started_at).filter(Run.status == "failed", Run.started_at >= start):
-        k = _aware(st[0]).date().isoformat()
+        k = _aware(st[0]).astimezone(DAY_TZ).date().isoformat()
         if k in days:
             days[k]["failed"] += 1
 

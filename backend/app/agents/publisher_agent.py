@@ -11,7 +11,7 @@ backend/scripts/authorize_youtube_channel.py). Degrades gracefully
 already hit, there's no video to publish, or the channel hasn't been
 OAuth-authorized yet — same pattern as every other credential-gated agent.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
 from app.core.db import SessionLocal
@@ -21,7 +21,9 @@ from app.services import youtube_client
 
 
 def _today_published_count(db, channel_id: int) -> int:
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    # The cap's "day" is the owner's IST day (same as the dashboard), not the UTC day.
+    local = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30)))
+    today_start = local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
     return (
         db.query(Video)
         .filter(
